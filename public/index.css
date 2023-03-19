@@ -1,0 +1,42 @@
+@import url(./bulma.min.css);
+
+body,html{
+    background-color: hsl(217, 71%, 53%);
+    
+}
+body{
+    padding-top:10%;
+    color:white;
+}
+/* hide the scroll bar */
+::-webkit-scrollbar {
+    display: none;
+}
+.xl-container{
+    max-width: 100%;
+    margin: 0 auto;
+    display:flex;
+    flex-direction: column;
+    padding: 0 10rem;
+}
+.course{
+    display: flex;
+    flex-direction: row;
+    margin-bottom: 2rem;
+}
+.custom-title{
+    font-size: 2rem;
+    font-weight: 700;
+}
+
+.item-0 {
+	flex-grow: 1;
+}
+/* remove the border and box shadow from the button */
+.item button{
+    border-radius:2px;
+    margin-top:15%;
+    box-shadow: none;
+    border: none;
+    background-color: tomato;
+}
