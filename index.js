@@ -15,23 +15,35 @@ let firstLoad = true;
 
 let persistentFile = "persistent.json"; //file to store data in
 
+
+let Settings = {};
 //check if persistent file exists, if not create it
 if(!existsSync(persistentFile)){
     console.error('Persistent file does not exist, creating...');
 
     let fileData = {
         Settings: {
-            ignore: []
+            ignore: [],
+        },
+        Keys:{
+            canvasKey: "",
+            clickUpKey: ""
         },
         Courses: [],
         lastPullDate: null
     }
     fs.writeFile(persistentFile, JSON.stringify(fileData));
+}else{
+    fs.readFile(persistentFile, 'utf8').then((data) => {
+        Settings = JSON.parse(data).Settings;
+    })
+    
+    if(!Settings.canvasKey || !Settings.clickUpKey) {
+        console.error("!!! Canvas key or ClickUp key not set, please set them in the persistent json file. !!!");
+        //process.exit(1);
+    }
 }
 
-let Settings = {
-    ignore: [] //array of courses to ignore
-}
 
 //Classes to store data from canvas.
 let Courses = []; //array of courses
@@ -81,7 +93,6 @@ async function loadCourses(forcePull) {
     let fileData = await fs.readFile(persistentFile, 'utf8')
     fileData = JSON.parse(fileData);
     Settings = fileData.Settings; //load settings from persistent file
-    console.log(Settings);
     if (fileData.lastPullDate != null && moment().diff(moment(fileData.lastPullDate), 'days') <= 30 && !forcePull) { //if the last pull date is more than 30 days ago, pull from canvas
         console.log("Pulling from persistent file...");
         let courseCount = 0;
@@ -114,13 +125,9 @@ async function loadCourses(forcePull) {
         }
     }
     //write to persistent file
-    let fileData = {
-        Settings: {
-            ignore: [] //future feature to ignore certain courses
-        },
-        Courses: Courses,
-        lastPullDate: moment().toISOString()
-    }
+    fileData.Courses = Courses;
+    fileData.lastPullDate = moment().format(); //set the last pull date to the current date
+
     await fs.writeFile(persistentFile, JSON.stringify(fileData));
     }
 }
@@ -155,7 +162,7 @@ async function loadAssignments() {
 app.get('/', async(req, res) => {
     if(firstLoad) {
         await loadCourses(false);
-        await loadAssignments();
+        loadAssignments();
         firstLoad = false;
     }
     let filteredCourses = [];
@@ -165,17 +172,27 @@ app.get('/', async(req, res) => {
             console.log(Courses[i].name);
         }
     }
-    res.render('index', {Courses: filteredCourses});
+    res.render('index', {Courses: filteredCourses, Keys: keys});
 });
 
 //api to hide a course
 app.get('/api/hide/:id', async(req, res) => {
+
     let id = req.params.id;
+    //unhide all courses if the id is -1
+
+
     let fileData = await fs.readFile(persistentFile, 'utf8');
     fileData = JSON.parse(fileData);
     if(!fileData.Settings.ignore.includes(id)){ //if the course is not already in the ignore list, add it   
         Settings.ignore.push(Number(id));
         fileData.Settings.ignore.push(id);
+    }
+    //crashes if there all courses are hidden, so we need to keep at least one course not hidden
+
+    if(id == -1) {
+        Settings.ignore = [];
+        fileData.Settings.ignore = [];
     }
     await fs.writeFile(persistentFile, JSON.stringify(fileData));
     res.json({success: true});
@@ -186,5 +203,5 @@ app.listen(process.env.PORT || 3000, () => {
 })
 
 if(process.env.NODE_ENV !== 'production') {
-    open(`http://localhost:${process.env.PORT || 3000}`); //only open the browser if we are not in production
+   // open(`http://localhost:${process.env.PORT || 3000}`); //only open the browser if we are not in production
 }

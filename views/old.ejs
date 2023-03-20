@@ -1,0 +1,34 @@
+<!-- old index, will be removed later, but im keeping for reference for now -->
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Centered List</title>
+	<link rel="stylesheet" href="/index.css">
+</head>
+<body>
+    <div class="xl-container">
+        <% Courses.forEach(element => { %>
+            <div class="course">
+                <div class="custom-title item-0"><%= element.name %></div>
+                <div class="right-align">
+                    <div class="item"><button onclick='hideCourse("<%= element.id %>")'>Hide Course</button></div>
+                </div>
+            </div>
+        <% }) %>
+
+    </div>
+</body>
+<script>
+    function hideCourse(id) {
+        console.log(id);
+        fetch('/api/hide/' + id, {
+            method: 'GET',
+        }).then(res => {
+            if (res.ok) {
+                console.log('Course hidden');
+                window.location.reload();
+            }
+        })
+    }
+</script>
+</html>

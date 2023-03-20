@@ -1,25 +1,304 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-	<title>Centered List</title>
-	<link rel="stylesheet" href="/index.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thingy</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.9.3/css/bulma.min.css">
+  <script src="https://kit.fontawesome.com/943ab53432.js" crossorigin="anonymous"></script>
+  <style>
+    html{
+        background-color: #1e2029;
+        color:white;
+    }
+    body {
+        margin-top:50px;
+      background-color: #1e2029;
+      color: #fff;
+
+      font-family: 'Open sans', Tahoma, Geneva, Verdana, sans-serif;
+      font-weight: 600;
+    }
+
+    .item-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      background-color: #282a36;
+      margin-left:20%;
+      margin-right:20%;
+      padding: 1rem;
+      border-radius: 6px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      transition: all 0.3s ease;
+    }
+    .item{
+      transition: box-shadow 0.3s ease-in-out;
+    }
+    .item:hover {
+  box-shadow: 0 0 10px rgba(98, 114, 164, 0.8);
+}
+    .item-container:hover {
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      transform: translateY(-2px);
+    }
+
+    .item-title {
+      flex-grow: 1;
+      text-align: left;
+    }
+
+    .button-container {
+      display: flex;
+      justify-content: flex-end;
+    } 
+    .title{
+        color:white;
+    }
+
+    .button {
+      margin-left: 0.5rem;
+    }
+
+    .button.is-primary, .button.is-danger {
+      transition: all 0.3s ease;
+    }
+
+    .button.is-primary:hover, .button.is-danger:hover {
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      transform: translateY(-1px);
+    }
+    .modal-card-head,
+.modal-card-foot {
+  background-color: #282a36;
+  border: none;
+}
+
+.modal-card-title {
+  color: #fff;
+}
+
+.modal-card-body {
+  background-color: #1e2029;
+}
+
+.modal-card-body .label,
+.modal-card-body .input,
+.modal-card-body .select select {
+  color: #fff;
+}
+
+.modal-card-body .input,
+.modal-card-body .select select {
+  background-color: #282a36;
+  border-color: #282a36;
+}
+
+.modal-card-body .input:hover,
+.modal-card-body .select select:hover {
+  border-color: #3e6baf;
+}
+
+.modal-card-body .input:focus,
+.modal-card-body .select select:focus {
+  border-color: #3e6baf;
+  box-shadow: 0 0 0 0.125em rgba(62, 107, 175, 0.25);
+}
+
+.modal-card-body .select {
+  width: 100%;
+}
+
+.button.is-primary {
+  background-color: #6272a4;
+  border-color: transparent;
+}
+
+.button.is-primary:hover {
+  background-color: #7986ab;
+  border-color: transparent;
+}
+
+.button.is-primary:focus {
+  border-color: transparent;
+  box-shadow: 0 0 0 0.125em rgba(62, 107, 175, 0.25);
+}
+.settings-icon {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  font-size: 1.5rem;
+  z-index: 1000;
+}
+
+.settings-icon a {
+  color: #fff;
+}
+
+.settings-icon a:hover {
+  color: #3e6baf;
+}
+
+
+</style>
 </head>
 <body>
-    <div class="xl-container">
-        <% Courses.forEach(element => { %>
-            <div class="course">
-                <div class="custom-title item-0"><%= element.name %></div>
-                <div class="right-align">
-                    <div class="item"><button onclick='hideCourse("<%= element.id %>")'>Hide Course</button></div>
-                </div>
+    <div class="settings-icon">
+          <i class="fas fa-cog"></i>
+        </a>
+      </div>
+      
+    <header>
+        <div class="container has-text-centered">
+            <h1 class="title">Class List</h1>
+        </div>
+    </header>
+  <section class="section">
+    <div class="container">
+      <% Courses.forEach(element => { %>
+      <div class="item-container">
+        <div class="item-title">
+          <%= element.name %>
+        </div>
+        <div class="button-container">
+            <button class="button is-primary" data-param="value1">Generate</button>         
+            <button class="button is-danger" onclick='hideCourse("<%= element.id %>")'>Hide</button>
+        </div>
+      </div>
+      <% }) %>
+  
+      <!-- Add more items as needed -->
+      <!-- generate model -->
+      <div class="modal" id="myModal">
+        <div class="modal-background"></div>
+        <div class="modal-card">
+          <header class="modal-card-head">
+            <p class="modal-card-title">Generate</p>
+            <button class="delete" aria-label="close"></button>
+          </header>
+          <section class="modal-card-body">
+            <div class="field">
+              <label class="label">Input 1</label>
+              <div class="control">
+                <input class="input" type="text" placeholder="Text input">
+              </div>
             </div>
-        <% }) %>
-
+      
+            <div class="field">
+              <label class="label">Input 2</label>
+              <div class="control">
+                <input class="input" type="text" placeholder="Text input">
+              </div>
+            </div>
+      
+            <div class="field">
+              <label class="label">Dropdown</label>
+              <div class="control">
+                <div class="select">
+                  <select>
+                    <option>Select option</option>
+                    <option>Option 1</option>
+                    <option>Option 2</option>
+                    <option>Option 3</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </section>
+          <footer class="modal-card-foot">
+            <button class="button is-primary is-centered">Submit</button>
+          </footer>
+        </div>
+      </div>   
+      
+      
+      <!-- settings modal -->
+      <div class="modal" id="settingsModal">
+        <div class="modal-background"></div>
+        <div class="modal-card">
+          <header class="modal-card-head">
+            <p class="modal-card-title">Settings</p>
+            <button class="delete" aria-label="close"></button>
+          </header>
+          <section class="modal-card-body">
+            <div class="field">
+              <label class="label">ClickUp API Key</label>
+              <div class="control">
+                <input class="input" type="text" placeholder="Enter your ClickUp API key">
+              </div>
+            </div>
+            <div class="field is-grouped" style="justify-content: center;">
+                <div class="control">
+                  <button class="button is-info" id="updateButton">
+                    <span class="icon">
+                      <i class="fas fa-sync-alt"></i>
+                    </span>
+                    <span>Update ClickUp Lists</span>
+                  </button>
+                </div>
+                <div class="control">
+                  <button class="button is-info" onclick="hideCourse(-1)">
+                    <span class="icon">
+                      <i class="fas fa-eye"></i>
+                    </span>
+                    <span>Show all classes</span>
+                  </button>
+                </div>
+              </div>
+              
+          </section>
+          <footer class="modal-card-foot">
+            <button class="button is-primary is-centered">Save</button>
+          </footer>
+        </div>
+      </div>
+      
     </div>
+  </section>
 </body>
 <script>
+    let currentParam;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const settingsModal = document.getElementById('settingsModal');
+      const settingsIcon = document.querySelector('.settings-icon');
+      const settingsCloseButton = settingsModal.querySelector('.delete');
+  
+      const myModal = document.getElementById('myModal');
+      const generateButtons = document.querySelectorAll('.button.is-primary');
+      const myModalCloseButton = myModal.querySelector('.delete');
+  
+      settingsIcon.addEventListener('click', () => {
+        settingsModal.classList.add('is-active');
+      });
+  
+      settingsCloseButton.addEventListener('click', () => {
+        settingsModal.classList.remove('is-active');
+      });
+  
+      settingsModal.querySelector('.modal-background').addEventListener('click', () => {
+        settingsModal.classList.remove('is-active');
+      });
+  
+      generateButtons.forEach(button => {
+        button.addEventListener('click', (event) => {
+            currentParam = event.currentTarget.dataset.param;
+            console.log(currentParam);
+            myModal.classList.add('is-active');
+        });
+    });
+
+  
+      myModalCloseButton.addEventListener('click', () => {
+        myModal.classList.remove('is-active');
+      });
+  
+      myModal.querySelector('.modal-background').addEventListener('click', () => {
+        myModal.classList.remove('is-active');
+      });
+    });
     function hideCourse(id) {
-        console.log(id);
         fetch('/api/hide/' + id, {
             method: 'GET',
         }).then(res => {
@@ -29,5 +308,7 @@
             }
         })
     }
-</script>
+  </script>
+  
+  
 </html>
