@@ -168,7 +168,6 @@
       </div>
       <% }) %>
   
-      <!-- Add more items as needed -->
       <!-- generate model -->
       <div class="modal" id="myModal">
         <div class="modal-background"></div>
@@ -224,6 +223,12 @@
           <section class="modal-card-body">
             <div class="field">
               <label class="label">ClickUp API Key</label>
+              <div class="control">
+                <input class="input" type="text" placeholder="Enter your ClickUp API key">
+              </div>
+            </div>
+            <div class="field">
+              <label class="label">Canvas Key</label>
               <div class="control">
                 <input class="input" type="text" placeholder="Enter your ClickUp API key">
               </div>
@@ -307,6 +312,11 @@
                 window.location.reload();
             }
         })
+    }
+    let canvasKey = "<%= canvasKey %>";
+    let clickUpKey = "<%= clickUpKey %>";
+    if(canvasKey == "" || clickUpKey == "") {
+        alert("Please enter your Canvas and ClickUp API keys in the settings page.");
     }
   </script>
   

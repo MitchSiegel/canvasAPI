@@ -39,8 +39,8 @@ if(!existsSync(persistentFile)){
     })
     
     if(!Settings.canvasKey || !Settings.clickUpKey) {
-        console.error("!!! Canvas key or ClickUp key not set, please set them in the persistent json file. !!!");
-        //process.exit(1);
+        console.error("!!! Canvas key or ClickUp key not set, please set them in the persistent json file. !!! (or in settings on the web interface)");
+        //process.exit(1); - decided not to exit because it's annoying
     }
 }
 
@@ -147,15 +147,12 @@ async function loadAssignments() {
         let response = await fetch(`https://canvas.colorado.edu/api/v1/courses/${Courses[i].getId()}/assignments?order_by=due_at&bucket=future`, requestOptions)
         let data = await response.json();
 
-        //console.log(data)
         for (let j = 0; j < data.length; j++) {
             let assignment = new Assignment(data[j].name, data[j].due_at, data[j].submission_types, data[j].html_url);
 
-           // console.log(assignment)
             Courses[i].addAssignment(assignment);
         }
     }
-    //TODO save assignments to persistent file (can't be bothered to do it right now)
 }
 
 //handle all of the routes
@@ -172,7 +169,7 @@ app.get('/', async(req, res) => {
             console.log(Courses[i].name);
         }
     }
-    res.render('index', {Courses: filteredCourses, Keys: keys});
+    res.render('index', {Courses: filteredCourses, canvasKey: Settings.canvasKey, clickUpKey: Settings.clickUpKey});
 });
 
 //api to hide a course
@@ -181,14 +178,13 @@ app.get('/api/hide/:id', async(req, res) => {
     let id = req.params.id;
     //unhide all courses if the id is -1
 
-
     let fileData = await fs.readFile(persistentFile, 'utf8');
     fileData = JSON.parse(fileData);
     if(!fileData.Settings.ignore.includes(id)){ //if the course is not already in the ignore list, add it   
         Settings.ignore.push(Number(id));
         fileData.Settings.ignore.push(id);
     }
-    //crashes if there all courses are hidden, so we need to keep at least one course not hidden
+    //crashes if there all courses are hidden, so we need to keep at least one course not hidden //TODO: fix this
 
     if(id == -1) {
         Settings.ignore = [];
