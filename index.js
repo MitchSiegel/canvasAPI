@@ -23,11 +23,15 @@ if(!existsSync(persistentFile)){
 
     let fileData = {
         Settings: {
-            ignore: [],
-        },
-        Keys:{
+            ignore: [-1],
             canvasKey: "",
-            clickUpKey: ""
+            clickUpKey: "",
+            clickUp:
+            {
+                teamId: "",
+                defaultListId: "", //might not use it for now
+                defaultFolderId: ""
+            }
         },
         Courses: [],
         lastPullDate: null
@@ -106,7 +110,7 @@ async function loadCourses(forcePull) {
 
     console.log("Pulling from canvas...");
     var myHeaders = new Headers();
-    myHeaders.append("Authorization", "Bearer " + process.env.CANVAS_TOKEN); 
+    myHeaders.append("Authorization", "Bearer " + Settings.canvasKey); 
     
     var requestOptions = {
       method: 'GET',
@@ -116,6 +120,7 @@ async function loadCourses(forcePull) {
     
     let response = await fetch("https://canvas.colorado.edu/api/v1/courses", requestOptions)
     let data = await response.json();
+    console.log(data)
     //create a course object for each course
     for (let i = 0; i < data.length; i++) {
         if(data[i].calendar == null) continue; //skip courses that don't have an ics file
@@ -132,35 +137,63 @@ async function loadCourses(forcePull) {
     }
 }
 
-async function loadAssignments() {
-    //load assignments from canvas api and store them in the Courses array (the correct course will be found by the course id)
-    for (let i = 0; i < 1; i++) {
-        var myHeaders = new Headers();
-        myHeaders.append("Authorization", "Bearer " + process.env.CANVAS_TOKEN);
+async function loadAssignments(course) {
+    var myHeaders = new Headers();
+    myHeaders.append("Authorization", "Bearer " + Settings.canvasKey);
 
-        var requestOptions = {
-            method: 'GET',
-            headers: myHeaders,
-            redirect: 'follow'
-        };
+    var requestOptions = {
+        method: 'GET',
+        headers: myHeaders,
+        redirect: 'follow'
+    };
+    let courseID = course.getId();
+    console.log(courseID);
+    let response = await fetch(`https://canvas.colorado.edu/api/v1/courses/${courseID}/assignments?order_by=due_at&bucket=future`, requestOptions);
+    let data = await response.json();
+    console.log(data);
+    for (let j = 0; j < data.length; j++) {
+    let assignment = new Assignment(data[j].name, data[j].due_at, data[j].submission_types, data[j].html_url);
 
-        let response = await fetch(`https://canvas.colorado.edu/api/v1/courses/${Courses[i].getId()}/assignments?order_by=due_at&bucket=future`, requestOptions)
-        let data = await response.json();
-
-        for (let j = 0; j < data.length; j++) {
-            let assignment = new Assignment(data[j].name, data[j].due_at, data[j].submission_types, data[j].html_url);
-
-            Courses[i].addAssignment(assignment);
-        }
+    course.addAssignment(assignment);
     }
 }
 
+async function getClickUpTeamId(){
+    console.log(Settings.clickUpKey)
+    if(Settings.clickUpKey == "") return;
+    var myHeaders = new Headers();
+    console.log(Settings.clickUpKey);
+    myHeaders.append("Content-Type", "application/json");
+    myHeaders.append("Authorization", Settings.clickUpKey);
+    
+    var requestOptions = {
+      method: 'GET',
+      headers: myHeaders,
+      redirect: 'follow'
+    };
+    
+    let responseData = await fetch("https://api.clickup.com/api/v2/team", requestOptions);
+    let data = await responseData.json();
+    console.log(data);
+    Settings.clickU
+    return data.teams[0].id;
+}
+
+//function to save settings to persistent file
+async function saveSettings() {
+    let fileData = await fs.readFile(persistentFile, 'utf8');
+    fileData = JSON.parse(fileData);
+    fileData.Settings = Settings;
+    await fs.writeFile(persistentFile, JSON.stringify(fileData));
+}
 //handle all of the routes
 app.get('/', async(req, res) => {
     if(firstLoad) {
         await loadCourses(false);
-        loadAssignments();
+        loadAssignments(Courses[0]);
+        console.log(Courses[0].Assignments);
         firstLoad = false;
+        getClickUpTeamId()
     }
     let filteredCourses = [];
     for(let i = 0; i < Courses.length; i++) {
@@ -193,9 +226,28 @@ app.get('/api/hide/:id', async(req, res) => {
     await fs.writeFile(persistentFile, JSON.stringify(fileData));
     res.json({success: true});
 });
+
+//api to save clickup or canvas key
+app.get('/api/saveKey/:keyType/:key', async(req, res) => {
+    let keyType = req.params.keyType;
+    let key = req.params.key;
+    if(keyType == "canvas" && key != "") {
+        Settings.canvasKey = key;
+        await saveSettings();
+        res.json({success: true});        
+    } else if(keyType == "clickup" && key != "") {
+        Settings.clickUpKey = key;
+        await saveSettings();
+        res.json({success: true});
+    } else {
+        res.json({success: false});
+        return;
+    }
+});
+
 //start the server, either on port 3000 or the port specified in the environment variables
-app.listen(process.env.PORT || 3000, () => {
-    console.log(`Server started on port ${process.env.PORT || 3000}`);
+app.listen(process.env.PORT || 3001, () => {
+    console.log(`Server started on port ${process.env.PORT || 3001}`);
 })
 
 if(process.env.NODE_ENV !== 'production') {

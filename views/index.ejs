@@ -37,7 +37,7 @@
       transition: box-shadow 0.3s ease-in-out;
     }
     .item:hover {
-  box-shadow: 0 0 10px rgba(98, 114, 164, 0.8);
+      box-shadow: 0 0 10px rgba(98, 114, 164, 0.8);
 }
     .item-container:hover {
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
@@ -65,7 +65,7 @@
       transition: all 0.3s ease;
     }
 
-    .button.is-primary:hover, .button.is-danger:hover {
+    .button.is-primary:hover, .button.is-danger:hover,.button.is-custom:hover {
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
       transform: translateY(-1px);
     }
@@ -110,7 +110,8 @@
   width: 100%;
 }
 
-.button.is-primary {
+.button.is-primary, .button.is-custom{
+   color:#fff;
   background-color: #6272a4;
   border-color: transparent;
 }
@@ -224,13 +225,13 @@
             <div class="field">
               <label class="label">ClickUp API Key</label>
               <div class="control">
-                <input class="input" type="text" placeholder="Enter your ClickUp API key">
+                <input class="input" type="text" id="clickup" placeholder="Enter your ClickUp API key" value="<%= clickUpKey %>">
               </div>
             </div>
             <div class="field">
               <label class="label">Canvas Key</label>
               <div class="control">
-                <input class="input" type="text" placeholder="Enter your ClickUp API key">
+                <input class="input" type="text" id="canvas" placeholder="Enter your ClickUp API key" value="<%= canvasKey %>">
               </div>
             </div>
             <div class="field is-grouped" style="justify-content: center;">
@@ -254,7 +255,7 @@
               
           </section>
           <footer class="modal-card-foot">
-            <button class="button is-primary is-centered">Save</button>
+            <button class="button is-custom is-centered" onclick="saveSettings()">Save</button>
           </footer>
         </div>
       </div>
@@ -312,6 +313,30 @@
                 window.location.reload();
             }
         })
+    }
+    function saveSettings(){
+        let canvasKey = document.querySelector('#canvas').value;
+        let clickUpKey = document.querySelector('#clickup').value;
+        if(canvasKey != ""){
+            fetch('/api/saveKey/canvas/' + canvasKey, {
+                method: 'GET',
+            }).then(res => {
+                if (res.ok) {
+                    console.log('Canvas key saved');
+                    settingsModal.classList.remove('is-active');
+                }
+            })
+        }
+        if(clickUpKey != ""){
+            fetch('/api/saveKey/clickup/' + clickUpKey, {
+                method: 'GET',
+            }).then(res => {
+                if (res.ok) {
+                    console.log('ClickUp key saved');
+                    settingsModal.classList.remove('is-active');
+                }
+            })
+        }
     }
     let canvasKey = "<%= canvasKey %>";
     let clickUpKey = "<%= clickUpKey %>";
