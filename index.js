@@ -325,7 +325,7 @@ async function createClickUpTask(name, description, due, listId){
         ],
         "due_date": due,
         "due_date_time": true,
-        //"start_date": task.startTime,
+        //"start_date": task.startTime, TODO
         //"start_date_time": true,
         "notify_all": false,
         "parent": null,
@@ -341,8 +341,7 @@ async function createClickUpTask(name, description, due, listId){
     let response = await fetch(url, options)
     //log the response from the api
     let json = await response.json();
-    console.log(json);
-    return json;
+    return {body: json, code: response.status};
 };
 
 //function to save settings to persistent file
@@ -446,7 +445,6 @@ app.get("/api/generate", async(req, res) => {
     //future feature but still keeping this code here, ignoreDuplicates is a setting that will ignore duplicate assignments, and is passed to this url as a query parameter, it is optional
     let ignoreDuplicates = req.query.ignoreDuplicates || false;
     //a lot of things are required for this to work, so we need to check if they are all there
-    console.log(req.query)
     //find course and make sure its valid
     let course = Courses.find(course => course.getId() == courseId);
     if(course == undefined) {
@@ -473,11 +471,23 @@ app.get("/api/generate", async(req, res) => {
     }
 
     console.log("[API]".cyan + " Generating ClickUp Tasks for".white + " course ".white + course.getName().cyan + " and ClickUp list ".white + String(list.name).cyan);
-    res.end();
+    let createdAllTasks = true;
     //we need to loop through the assigment list and create a new assignment for each one
     let assignments = course.getAssignments();
     for(let i=0; i < assignments.length; i++) {
-        createClickUpTask(assignments[i].name, assignments[i].url, assignments[i].clickUpDueDate, list.id); //create the task
+        let task = await createClickUpTask(assignments[i].name, assignments[i].url, assignments[i].clickUpDueDate, list.id); //create the task
+        if(task.code != 200){
+            console.log("[CLICKUP] Error creating task: ".red);
+            createdAllTasks = false;
+            continue;
+        }else{
+            console.log("[CLICKUP]".green + " Created task with id: ".white + String(task.body.id).cyan + " in list ".white + String(list.name).cyan);
+        }
+    }
+    if(createdAllTasks) {
+        res.json({success: true});
+    }else{
+        res.json({success: false});
     }
 });
 //start the server, either on port 3000 or the port specified in the environment variables
