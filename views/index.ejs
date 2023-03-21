@@ -79,8 +79,13 @@
   color: #fff;
 }
 
-.modal-card-body {
-  background-color: #1e2029;
+.modal-card-body{
+  background-color: #1e2029 !important;
+}
+.notification.is-dark{
+  background-color: #282a36;
+  color: #fff;
+  border: none;
 }
 
 .modal-card-body .label,
@@ -208,11 +213,11 @@ label {
 }
 
 .loader {
-  border: 15px solid white;
+  border: 5px solid white;
   border-radius: 50%;
-  border-top: 15px #9e579d solid;
-  width: 100px;
-  height: 100px;
+  border-top: 5px #9e579d solid;
+  width: 50px;
+  height: 50px;
   animation: spin 2s linear infinite;
 }
 
@@ -243,7 +248,7 @@ label {
           <%= element.name %>
         </div>
         <div class="button-container">
-            <button class="button is-primary" data-param="value1">Generate</button>         
+            <button class="button is-primary" data-param="<%= element.id %>">Generate</button>         
             <button class="button is-danger" onclick='hideCourse("<%= element.id %>")'>Hide</button>
         </div>
       </div>
@@ -258,16 +263,18 @@ label {
             <button class="delete" aria-label="close"></button>
           </header>
           <section class="modal-card-body">
-  
-            <div class="loader-container">
-              <div id="loader" class="loader" style="display:none;"></div>
+            <div class="notification is-dark">
+              <div class="has-text-centered" id="preLoad">Loading assignments...</div>
+              <div class="loader-container">
+                <div id="load" class="loader" style="display:inline-block;"></div>
+                <div id="postLoad"></div>
+              </div>
             </div>
-
             <div class="field">
               <label class="label">Select ClickUp List</label>
               <div class="control">
                 <div class="select is-fullwidth">
-                  <select>
+                  <select id="clickUpList">
                     <% if (clickUp.defaultSpaceId) { %>
                       <% clickUp.spaces.forEach(element => { %>
                         <% if(element.id == clickUp.defaultSpaceId) { %>
@@ -300,7 +307,7 @@ label {
             
           </section>
           <footer class="modal-card-foot">
-            <button class="button is-primary is-centered">Submit</button>
+            <button class="button is-info is-centered" id="generate" disabled onclick="generate()">Submit</button>
           </footer>
         </div>
       </div>   
@@ -394,6 +401,12 @@ label {
       const myModal = document.getElementById('myModal');
       const generateButtons = document.querySelectorAll('.button.is-primary');
       const myModalCloseButton = myModal.querySelector('.delete');
+      const preLoad = document.getElementById('preLoad');
+      const load = document.getElementById('load');
+      const postLoad = document.getElementById('postLoad');
+      const submitButton = document.getElementById('generate');
+      const clickUpList = document.getElementById('clickUpList');
+      const ignoreDuplicates = document.getElementById('ignoreDuplicates');
   
       settingsIcon.addEventListener('click', () => {
         settingsModal.classList.add('is-active');
@@ -408,20 +421,37 @@ label {
       });
   
       generateButtons.forEach(button => {
-        button.addEventListener('click', (event) => {
+        button.addEventListener('click', async(event) => {
             currentParam = event.currentTarget.dataset.param;
             console.log(currentParam);
             myModal.classList.add('is-active');
+            
+            const res = await fetch('/api/getAssignments/' + currentParam);
+          
+            const data = await res.json();
+            preLoad.classList.add('is-hidden');
+            load.classList.add('is-hidden');
+            submitButton.disabled = false;
+            postLoad.innerHTML = `${data.courseName} has ${data.assignments.length} future assignments. Please select the ClickUp list you would like these assignments to added to.`;
+            console.log(data);
         });
     });
 
   
       myModalCloseButton.addEventListener('click', () => {
         myModal.classList.remove('is-active');
+        preLoad.classList.remove('is-hidden');
+        load.classList.remove('is-hidden');
+        postLoad.innerHTML = '';
+        submitButton.disabled = true;
       });
   
       myModal.querySelector('.modal-background').addEventListener('click', () => {
         myModal.classList.remove('is-active');
+        preLoad.classList.remove('is-hidden');
+        load.classList.remove('is-hidden');
+        postLoad.innerHTML = '';
+        submitButton.disabled = true;
       });
     });
     function hideCourse(id) {
@@ -479,6 +509,19 @@ label {
             })
         }
         settingsModal.classList.remove('is-active');
+    }
+    function generate(){
+        console.log(clickUpList.value);
+        console.log(ignoreDuplicates.checked);
+
+        console.log(currentParam);
+        fetch(`/api/generate?clickUpList=${clickUpList.value}&ignoreDuplicates=${ignoreDuplicates.checked}&courseID=${currentParam}`, {
+            method: 'GET',
+        }).then(res => {
+            if (res.ok) {
+                console.log('Assignments generated');
+            }
+        })
     }
     let canvasKeySaved = "<%= canvasKey %>";
     let clickUpKeySaved = "<%= clickUpKey %>";

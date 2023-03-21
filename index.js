@@ -6,6 +6,7 @@ import express from 'express'; //handles web interface and api
 import { promises as fs, existsSync as existsSync} from 'fs'; //handles file system
 import ejs from 'ejs';
 dotenv.config() // load environment variables from .env file
+import colors from 'colors';
 
 const app = express();
 app.set("view engine", "ejs");
@@ -50,12 +51,20 @@ class Course {
     getId() {
         return this.id;
     }
+
+    //get course name
+    getName() {
+        return this.name;
+    }
+
 }
 
 class Assignment {
     constructor(name, dueDate, submissionType,url) {
         this.name = name;
         this.dueDate = dueDate;
+        //convert due date to local time, and then to seconds for clickUp
+        this.clickUpDueDate = moment(dueDate).local().format('x');
         this.submissionType = submissionType;
         this.url = url;
     }
@@ -102,9 +111,11 @@ if(!existsSync(persistentFile)){
             clickUp:
             {
                 teamId: "",
+                userId:"",
                 spaces: [],
                 defaultSpaceId: "",
                 defaultListId: ""
+
             }
         },
         Courses: [],
@@ -117,8 +128,7 @@ if(!existsSync(persistentFile)){
     })
     
     if(Settings.canvasKey == "" || Settings.clickUpKey == "") {
-        console.error("!!! Canvas key or ClickUp key not set, please set them in the persistent json file. !!! (or in settings on the web interface)");
-        //process.exit(1); - decided not to exit because it's annoying
+        console.log("[ERROR]".red + " Canvas key or ClickUp key not set, please set them in the persistent json file. (or in settings on the web interface".white);
     }
 }
 
@@ -130,7 +140,6 @@ async function loadCourses(forcePull) {
     fileData = JSON.parse(fileData);
     Settings = fileData.Settings; //load settings from persistent file
     if (fileData.lastPullDate != null && moment().diff(moment(fileData.lastPullDate), 'days') <= 30 && !forcePull) { //if the last pull date is more than 30 days ago, pull from canvas
-        console.log("Pulling courses from persistent file...");
         let courseCount = 0;
         for(let i = 0; i < fileData.Courses.length; i++) {
             if(!Settings.ignore.includes(String(fileData.Courses[i].id))){ //this is not working for some reason
@@ -138,11 +147,11 @@ async function loadCourses(forcePull) {
                 courseCount++;
             }
         }
+        console.log("[LOCAL]".magenta + " Courses loaded".white);
     } else {
-
-    console.log("Pulling courses from canvas...");
+    console.log("[CANVAS]".yellow + " Pulling courses from canvas".white);
     if(Settings.canvasKey == ""){ //check if canvas key is set
-        console.error("Unable to pull from canvas, canvas key not set.");
+        console.error("Unable to pull from canvas, canvas key not set.".red);
         return;
     }
     var myHeaders = new Headers();
@@ -179,6 +188,11 @@ async function loadCourses(forcePull) {
 }
 
 async function loadAssignments(course) {
+    //gotta purge the assignments from the course
+    if(course.getAssignments().length > 0){
+        console.log("[LOCAL]".magenta + " Assignments already loaded for course: ".white + course.getId().toString().yellow);
+        return course.getAssignments();
+    }
     var myHeaders = new Headers();
     myHeaders.append("Authorization", "Bearer " + Settings.canvasKey);
 
@@ -188,22 +202,23 @@ async function loadAssignments(course) {
         redirect: 'follow'
     };
     let courseID = course.getId();
+    console.log("[CANVAS]".yellow + " Pulling assignments from canvas for course: ".white + courseID.toString().yellow);
     let response = await fetch(`https://canvas.colorado.edu/api/v1/courses/${courseID}/assignments?order_by=due_at&bucket=future`, requestOptions);
     let data = await response.json();
     for (let j = 0; j < data.length; j++) {
     let assignment = new Assignment(data[j].name, data[j].due_at, data[j].submission_types, data[j].html_url);
-
     course.addAssignment(assignment);
     }
+    console.log("[CANVAS]".yellow + " Assignments pulled from canvas for course: ".white + courseID.toString().yellow);
 }
 
 async function getClickUpTeamId(forcePull){
     if(Settings.clickUpKey == "") return;
     if(Settings.clickUp.teamId != "" && !forcePull){
-        console.log("Pulling team id from persistent file...");
+        console.log("[LOCAL]".magenta + " ClickUp Team ID loaded".white);
         return Settings.clickUp.teamId; //if the team id is already set, return it (and don't pull from clickup)
     }
-    console.log("Pulling team id from clickup...");
+    console.log("[CLICKUP]".green + " ClickUp Team ID loading from clickup".white)
     var myHeaders = new Headers();
     myHeaders.append("Content-Type", "application/json");
     myHeaders.append("Authorization", Settings.clickUpKey);
@@ -217,6 +232,7 @@ async function getClickUpTeamId(forcePull){
     let responseData = await fetch("https://api.clickup.com/api/v2/team", requestOptions);
     let data = await responseData.json();
     Settings.clickUp.teamId = data.teams[0].id;
+    Settings.clickUp.userId = data.teams[0].members[0].user.id;
     saveSettings();
     return data.teams[0].id;
 }
@@ -224,12 +240,12 @@ async function getClickUpTeamId(forcePull){
 async function getClickUpSpaces(forcePull){
     if(Settings.clickUpKey == "") return;
     if(Settings.clickUp.spaces.length > 0 && !forcePull){
-        console.log("Pulling spaces from persistent file...");
+        console.log("[LOCAL]".magenta + " ClickUp Spaces loaded".white);
         return Settings.clickUp.spaces; //if the spaces are already set, return them (and don't pull from clickup)
     }
     //if the spaces are not set, pull from clickup, or if forcePull is true. either way we need to make sure the spaces are empty
     Settings.clickUp.spaces = [];
-    console.log("Pulling spaces from clickup...");
+    console.log("[CLICKUP]".green + " ClickUp Spaces loading".white);
     var myHeaders = new Headers();
     myHeaders.append("Content-Type", "application/json");
     myHeaders.append("Authorization", Settings.clickUpKey);
@@ -247,6 +263,7 @@ async function getClickUpSpaces(forcePull){
         Settings.clickUp.spaces.push(space);
     };
     saveSettings();
+    console.log("[CLICKUP]".green + " ClickUp Spaces loaded".white);
     return data.spaces;
 }
 
@@ -262,11 +279,11 @@ async function getClickUpLists(forcePull){
             }
         }
         if(!doesSpaceHaveNoLists) {
-            console.log("Pulling lists from persistent file...");
+            console.log("[LOCAL]".magenta + " ClickUp Lists loaded".white)
             return Settings.clickUp.spaces; //if there are lists in the spaces, return them
         }
     }
-    console.log("Pulling lists from clickup...")
+    console.log("[CLICKUP]".green + " ClickUp Lists loading".white);
     if(Settings.clickUp.spaces.length == 0) return; //if there are no spaces, return
     var myHeaders = new Headers();
     myHeaders.append("Content-Type", "application/json");
@@ -290,8 +307,43 @@ async function getClickUpLists(forcePull){
         }
     }
     saveSettings();
+    console.log("[CLICKUP]".green + " ClickUp Lists loaded".white);
     return Settings.clickUp.spaces;
 }
+
+async function createClickUpTask(name, description, due, listId){
+    let url = `https://api.clickup.com/api/v2/list/${listId}/task`;
+    let headers = {
+        'Content-Type': 'application/json',
+        'Authorization': Settings.clickUpKey,
+    };
+    let body = {
+        "name":  name,
+        "description": description,
+        "assignees": [
+            Number(Settings.clickUp.userId)
+        ],
+        "due_date": due,
+        "due_date_time": true,
+        //"start_date": task.startTime,
+        //"start_date_time": true,
+        "notify_all": false,
+        "parent": null,
+        "links_to": null,
+        "custom_fields": []
+    };
+    
+    const options = {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+    };
+    let response = await fetch(url, options)
+    //log the response from the api
+    let json = await response.json();
+    console.log(json);
+    return json;
+};
 
 //function to save settings to persistent file
 async function saveSettings() {
@@ -300,17 +352,18 @@ async function saveSettings() {
     fileData.Settings = Settings;
     await fs.writeFile(persistentFile, JSON.stringify(fileData));
 }
-//handle all of the routes
+//load in initial data, must be done before the server starts, and in order
+loadCourses().then(() => {
+    getClickUpTeamId().then(() => {
+        getClickUpSpaces().then(() => {
+            getClickUpLists();
+        });
+    });
+});
+
+
+//index page
 app.get('/', async(req, res) => {
-    if(firstLoad) {
-        await loadCourses(false);
-        //loadAssignments(Courses[0]);
-        //console.log("assigments:", Courses[0].Assignments);
-        firstLoad = false;
-        await getClickUpTeamId();
-        await getClickUpSpaces();
-        await getClickUpLists();
-    }
     let filteredCourses = [];
     for(let i = 0; i < Courses.length; i++) {
         if(!Settings.ignore.includes(Courses[i].getId())){
@@ -322,7 +375,6 @@ app.get('/', async(req, res) => {
 
 //api to hide a course
 app.get('/api/hide/:id', async(req, res) => {
-
     let id = req.params.id;
     //unhide all courses if the id is -1
 
@@ -335,8 +387,11 @@ app.get('/api/hide/:id', async(req, res) => {
     //crashes if there all courses are hidden, so we need to keep at least one course not hidden //TODO: fix this
 
     if(id == -1) {
-        Settings.ignore = [];
-        fileData.Settings.ignore = [];
+        console.log("[API]".cyan + " Un-hiding all courses".white);
+        Settings.ignore = [-2];
+        fileData.Settings.ignore = [-2];
+    }else{
+        console.log("[API]".cyan + " Hiding course with id: ".white + req.params.id.cyan);
     }
     await fs.writeFile(persistentFile, JSON.stringify(fileData));
     res.json({success: true});
@@ -369,9 +424,65 @@ app.get("/forceClickUpPull", async(req, res) => {
     await getClickUpLists(true);
     res.json({success: true});
 });
+
+app.get("/api/getAssignments/:courseId", async(req, res) => {
+    console.log("[API]".cyan + " Getting assignments for course with id: ".white + req.params.courseId.cyan)
+    let courseId = req.params.courseId;
+    let course = Courses.find(course => course.getId() == courseId);
+    if(course == undefined) {
+        res.json({success: false});
+        return;
+    }
+    //temporarily disabled, as im styling it in the frontend and don't want so many requests
+    await loadAssignments(course);
+    res.json({success: true, assignments: course.Assignments,courseName: course.getName()});
+    //es.json({success: true, assignments: [], );
+});
+
+app.get("/api/generate", async(req, res) => {
+    //all things here are passed by querys, we need to get them all
+    let courseId = req.query.courseID;
+    let clickUpList = req.query.clickUpList;
+    //future feature but still keeping this code here, ignoreDuplicates is a setting that will ignore duplicate assignments, and is passed to this url as a query parameter, it is optional
+    let ignoreDuplicates = req.query.ignoreDuplicates || false;
+    //a lot of things are required for this to work, so we need to check if they are all there
+    console.log(req.query)
+    //find course and make sure its valid
+    let course = Courses.find(course => course.getId() == courseId);
+    if(course == undefined) {
+        res.json({success: false, error: "Invalid course id"});
+        return;
+    }
+    if(course.getAssignments().length == 0) {
+        res.json({success: false, error: "No assignments found for course"});
+        return;
+    }
+    //find clickup list and make sure its valid
+    let list = undefined;
+    for(let i=0; i < Settings.clickUp.spaces.length; i++) {
+        let space = Settings.clickUp.spaces[i];
+        for(let j=0; j < space.lists.length; j++) {
+            if(space.lists[j].id == clickUpList) {
+                list = space.lists[j];
+            }
+        }
+    }
+    if(list == undefined) {
+        res.json({success: false, error: "Invalid clickup list id"});
+        return;
+    }
+
+    console.log("[API]".cyan + " Generating ClickUp Tasks for".white + " course ".white + course.getName().cyan + " and ClickUp list ".white + String(list.name).cyan);
+    res.end();
+    //we need to loop through the assigment list and create a new assignment for each one
+    let assignments = course.getAssignments();
+    for(let i=0; i < assignments.length; i++) {
+        createClickUpTask(assignments[i].name, assignments[i].url, assignments[i].clickUpDueDate, list.id); //create the task
+    }
+});
 //start the server, either on port 3000 or the port specified in the environment variables
 app.listen(process.env.PORT || 3001, () => {
-    console.log(`Server started on port ${process.env.PORT || 3001}`);
+    console.log("[SERVER]".blue +  ` Server started on port `.white + `${(process.env.PORT || 3001)}`.blue);
 })
 
 if(process.env.NODE_ENV !== 'production') {
