@@ -106,9 +106,9 @@
   box-shadow: 0 0 0 0.125em rgba(62, 107, 175, 0.25);
 }
 
-.modal-card-body .select {
+.modal-card-body .select select {
   width: 100%;
-}
+} 
 
 .button.is-primary, .button.is-custom{
    color:#fff;
@@ -139,6 +139,86 @@
 
 .settings-icon a:hover {
   color: #3e6baf;
+}
+/* toggle switch */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 60px;
+  height: 34px;
+  margin-left: 15px;
+  margin-right: 10px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #424242;
+  transition: .4s;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 26px;
+  width: 26px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: .4s;
+}
+
+input:checked + .slider {
+  background-color: #4CAF50;
+}
+
+input:checked + .slider:before {
+  transform: translateX(26px);
+}
+label {
+  white-space: nowrap;
+}
+.beta-tag {
+  display: inline-block;
+  vertical-align: middle;
+}
+.slider.round {
+  border-radius: 34px;
+}
+
+.slider.round:before {
+  border-radius: 50%;
+}
+
+
+.center-container,.loader-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.loader {
+  border: 15px solid white;
+  border-radius: 50%;
+  border-top: 15px #9e579d solid;
+  width: 100px;
+  height: 100px;
+  animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 
@@ -178,33 +258,46 @@
             <button class="delete" aria-label="close"></button>
           </header>
           <section class="modal-card-body">
-            <div class="field">
-              <label class="label">Input 1</label>
-              <div class="control">
-                <input class="input" type="text" placeholder="Text input">
-              </div>
+  
+            <div class="loader-container">
+              <div id="loader" class="loader" style="display:none;"></div>
             </div>
-      
+
             <div class="field">
-              <label class="label">Input 2</label>
+              <label class="label">Select ClickUp List</label>
               <div class="control">
-                <input class="input" type="text" placeholder="Text input">
-              </div>
-            </div>
-      
-            <div class="field">
-              <label class="label">Dropdown</label>
-              <div class="control">
-                <div class="select">
+                <div class="select is-fullwidth">
                   <select>
-                    <option>Select option</option>
-                    <option>Option 1</option>
-                    <option>Option 2</option>
-                    <option>Option 3</option>
+                    <% if (clickUp.defaultSpaceId) { %>
+                      <% clickUp.spaces.forEach(element => { %>
+                        <% if(element.id == clickUp.defaultSpaceId) { %>
+                          <% element.lists.forEach(list => { %>
+                            <option value="<%= list.id %>"><%= list.name %></option>
+                          <% }) %>
+                      <% }}) %>
+                    <% } %>
                   </select>
                 </div>
               </div>
             </div>
+            <div class="center-container">
+            <div class="field is-horizontal">
+              <div class="field-label is-normal">
+                <label class="label" for="ignoreDuplicates">Ignore duplicates</label>
+              </div>
+              <div class="field-body">
+                <div class="field">
+                  <div class="control">
+                    <label class="switch">
+                      <input type="checkbox" id="ignoreDuplicates">
+                      <span class="slider round"></span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+            
           </section>
           <footer class="modal-card-foot">
             <button class="button is-primary is-centered">Submit</button>
@@ -234,13 +327,41 @@
                 <input class="input" type="text" id="canvas" placeholder="Enter your ClickUp API key" value="<%= canvasKey %>">
               </div>
             </div>
+            <div class="field">
+              <label class="label">Default ClickUp Space</label>
+              <div class="control">
+                <div class="select is-fullwidth">
+                  <select id="defaultClickUpSpace">
+                    <% if (clickUp.spaces.length <= 0) { %>
+                      <!-- This option will show if there is no spaces or clickup auth -->
+                      <option hidden selected>Please enter clickup key and update lists first.</option>
+                    <% }else if(clickUp.defaultSpaceId == ""){ %>
+                      <!-- this option will show if they are authenticated but haven't chosen a default list yet -->  
+                      <option hidden selected>Please select default list</option>
+                      <% for (var key in clickUp.spaces) { %>
+                        <option value="<%= clickUp.spaces[key].id %>"><%= clickUp.spaces[key].name %></option>
+                      <% } %>
+                    <% }else{ %>  
+                      <!-- this option will show if they are authenticated and have a default list -->
+                      <% for (var key in clickUp.spaces) { %>
+                        <% if(clickUp.spaces[key].id == clickUp.defaultSpaceId){ %>
+                          <option value="<%= clickUp.spaces[key].id %>" selected><%= clickUp.spaces[key].name %></option>
+                        <% continue;} %>
+                        <option value="<%= clickUp.spaces[key].id %>" ><%= clickUp.spaces[key].name %></option>
+                      <% } %>
+                    <% } %>
+                  </select>
+                </div>
+              </div>
+            </div>
+      
             <div class="field is-grouped" style="justify-content: center;">
                 <div class="control">
-                  <button class="button is-info" id="updateButton">
+                  <button class="button is-info" id="updateButton" onclick="forceClickUp()">
                     <span class="icon">
                       <i class="fas fa-sync-alt"></i>
                     </span>
-                    <span>Update ClickUp Lists</span>
+                    <span>Update ClickUp</span>
                   </button>
                 </div>
                 <div class="control">
@@ -252,7 +373,6 @@
                   </button>
                 </div>
               </div>
-              
           </section>
           <footer class="modal-card-foot">
             <button class="button is-custom is-centered" onclick="saveSettings()">Save</button>
@@ -314,10 +434,21 @@
             }
         })
     }
+    function forceClickUp(){
+        fetch('/forceClickUpPull', {
+            method: 'GET',
+        }).then(res => {
+            if (res.ok) {
+                console.log('ClickUp updated');
+                window.location.reload();
+            }
+        })
+    }
     function saveSettings(){
         let canvasKey = document.querySelector('#canvas').value;
         let clickUpKey = document.querySelector('#clickup').value;
-        if(canvasKey != ""){
+        let defaultClickUpSpace = document.querySelector('#defaultClickUpSpace').value;
+        if(canvasKey != "" && canvasKey != canvasKeySaved){
             fetch('/api/saveKey/canvas/' + canvasKey, {
                 method: 'GET',
             }).then(res => {
@@ -327,7 +458,7 @@
                 }
             })
         }
-        if(clickUpKey != ""){
+        if(clickUpKey != "" && clickUpKey != clickUpKeySaved){
             fetch('/api/saveKey/clickup/' + clickUpKey, {
                 method: 'GET',
             }).then(res => {
@@ -337,12 +468,29 @@
                 }
             })
         }
+        if(defaultClickUpSpace != "" && defaultClickUpSpace != defaultClickUpSpaceSaved){
+            fetch('/api/saveKey/defaultClickUpSpace/' + defaultClickUpSpace, {
+                method: 'GET',
+            }).then(res => {
+                if (res.ok) {
+                    console.log('Default ClickUp Space saved');
+                    window.location.reload();
+                }
+            })
+        }
+        settingsModal.classList.remove('is-active');
     }
-    let canvasKey = "<%= canvasKey %>";
-    let clickUpKey = "<%= clickUpKey %>";
-    if(canvasKey == "" || clickUpKey == "") {
+    let canvasKeySaved = "<%= canvasKey %>";
+    let clickUpKeySaved = "<%= clickUpKey %>";
+    let defaultClickUpSpaceSaved = "<%= clickUp.defaultSpaceId %>";
+    if(canvasKeySaved == "" || clickUpKeySaved == "") {
         alert("Please enter your Canvas and ClickUp API keys in the settings page.");
     }
+    let clickUp = {
+        //yes I know this shows up as an error, but it works, and it should not be changed
+        spaces: <%-JSON.stringify(clickUp)%>
+    }
+    console.log(clickUp);
   </script>
   
   
