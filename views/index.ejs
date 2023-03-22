@@ -454,8 +454,9 @@ label {
       const clickUpList = document.getElementById('clickUpList');
       const ignoreDuplicates = document.getElementById('ignoreDuplicates');
       const ignoreTags = document.getElementById('ignore-tags');
-
-      console.log(notify)
+      let cutoffDate = document.querySelector('#cutoffDate');
+      let today = new Date().toISOString().split('T')[0];
+      cutoffDate.setAttribute("min",today);
       new BulmaTagsInput(ignoreTags);
       settingsIcon.addEventListener('click', () => {
         settingsModal.classList.add('is-active');
@@ -473,7 +474,6 @@ label {
         
         button.addEventListener('click', async(event) => {
             currentParam = event.currentTarget.dataset.param;
-            console.log(currentParam);
             myModal.classList.add('is-active');
             
             const res = await fetch('/api/getAssignments/' + currentParam);
@@ -483,7 +483,6 @@ label {
             load.classList.add('is-hidden');
             submitButton.disabled = false;
             postLoad.innerHTML = `${data.courseName} has ${data.assignments.length} future assignments.`;
-            console.log(data);
         });
     });
 
@@ -562,11 +561,8 @@ label {
     }
     const notify = document.getElementById('generateNotify');
     function generate(){
-        console.log(clickUpList.value);
-        console.log(ignoreDuplicates.checked);
-
-        console.log(currentParam);
-        fetch(`/api/generate?clickUpList=${clickUpList.value}&ignoreDuplicates=${ignoreDuplicates.checked}&courseID=${currentParam}`, {
+        let cutOff = (cutoffDate.value == "") ? "none" : cutoffDate.value;
+        fetch(`/api/generate?clickUpList=${clickUpList.value}&ignoreDuplicates=${ignoreDuplicates.checked}&courseID=${currentParam}&cutOffDate=${cutOff}`, {
             method: 'GET',
         }).then(res => {
             if (res.ok) {
@@ -601,7 +597,6 @@ label {
         //yes I know this shows up as an error, but it works, and it should not be changed
         spaces: <%-JSON.stringify(clickUp)%>
     }
-    console.log(clickUp);
   </script>
   
   

@@ -313,7 +313,7 @@ async function getClickUpLists(forcePull){
 }
 
 async function createClickUpTask(name, description, due, listId){
-    if(isNaN(Date.parse(due))){
+    if(isNaN(due)){
         return {body: {}, code: 100};
     }
     let url = `https://api.clickup.com/api/v2/list/${listId}/task`;
@@ -356,7 +356,7 @@ async function createClickUpTask(name, description, due, listId){
 async function getClickUpListTasks(listId){
     if(Settings.clickUpKey == "") return;
     if(Settings.clickUp.spaces.length == 0) return;
-    console.log("[CLICKUP]".green + "Loading tasks for list ID".white + ` ${listId}`.green);
+    console.log("[CLICKUP]".green + " Loading tasks for list ID".white + ` ${listId}`.green);
     var myHeaders = new Headers();
     myHeaders.append("Content-Type", "application/json");
     myHeaders.append("Authorization", Settings.clickUpKey);
@@ -373,6 +373,7 @@ async function getClickUpListTasks(listId){
     for(var i = 0; i < data.tasks.length; i++){
         taskNames.push(data.tasks[i].name);
     }
+    if(taskNames.length == 0) taskNames.push("No tasks");
     console.log("[CLICKUP]".green + " Loaded tasks for list ID".white + ` ${listId}`.green);
     return taskNames;
     
@@ -477,6 +478,13 @@ app.get("/api/generate", async(req, res) => {
     let clickUpList = req.query.clickUpList;
     //future feature but still keeping this code here, ignoreDuplicates is a setting that will ignore duplicate assignments, and is passed to this url as a query parameter, it is optional
     let ignoreDuplicates = req.query.ignoreDuplicates || false;
+    let cutOffDate = req.query.cutOffDate;
+    if(cutOffDate == "none") {
+        cutOffDate = undefined;
+    }else{
+        cutOffDate = new moment(cutOffDate);
+        console.log(cutOffDate);
+    }
     //a lot of things are required for this to work, so we need to check if they are all there
     //find course and make sure its valid
     let course = Courses.find(course => course.getId() == courseId);
@@ -502,7 +510,7 @@ app.get("/api/generate", async(req, res) => {
         res.json({success: false, error: "Invalid clickup list id"});
         return;
     }
-    let clickUpTasks = [];
+    let clickUpTasks = ["none"];
     //we really only need to get the tasks if we are ignoring duplicates. Getting the task will slow down the process, so we only want to do it if we need to
     if(ignoreDuplicates == "true") {
         clickUpTasks = await getClickUpListTasks(list.id);
@@ -517,6 +525,12 @@ app.get("/api/generate", async(req, res) => {
             let a = findBestMatch(assignments[i].name, clickUpTasks);
             if(a.bestMatch.rating > 0.85) {
                 console.log("[GENERATION]".blue + " Skipping task ".white + String(a.bestMatch.target).blue + " because it already exists in ClickUp".white);
+                continue;
+            }
+        }
+        if(cutOffDate != undefined) {
+            if(moment(assignments[i].dueDate).isAfter(cutOffDate)) {
+                console.log("[GENERATION]".blue + " Skipping task ".white + String(assignments[i].name).blue + " because it is after the cutoff date".white);
                 continue;
             }
         }
