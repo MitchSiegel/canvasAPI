@@ -483,7 +483,6 @@ app.get("/api/generate", async(req, res) => {
         cutOffDate = undefined;
     }else{
         cutOffDate = new moment(cutOffDate);
-        console.log(cutOffDate);
     }
     //a lot of things are required for this to work, so we need to check if they are all there
     //find course and make sure its valid
