@@ -313,6 +313,9 @@ async function getClickUpLists(forcePull){
 }
 
 async function createClickUpTask(name, description, due, listId){
+    if(isNaN(Date.parse(due))){
+        return {body: {}, code: 100};
+    }
     let url = `https://api.clickup.com/api/v2/list/${listId}/task`;
     let headers = {
         'Content-Type': 'application/json',
@@ -342,6 +345,11 @@ async function createClickUpTask(name, description, due, listId){
     let response = await fetch(url, options)
     //log the response from the api
     let json = await response.json();
+    if(response.status != 200){
+        console.log(json)
+        console.log(response)
+        console.log(body)
+    }
     return {body: json, code: response.status};
 };
 
@@ -469,7 +477,6 @@ app.get("/api/generate", async(req, res) => {
     let clickUpList = req.query.clickUpList;
     //future feature but still keeping this code here, ignoreDuplicates is a setting that will ignore duplicate assignments, and is passed to this url as a query parameter, it is optional
     let ignoreDuplicates = req.query.ignoreDuplicates || false;
-    console.log(ignoreDuplicates)
     //a lot of things are required for this to work, so we need to check if they are all there
     //find course and make sure its valid
     let course = Courses.find(course => course.getId() == courseId);
@@ -514,12 +521,17 @@ app.get("/api/generate", async(req, res) => {
             }
         }
         let task = await createClickUpTask(assignments[i].name, assignments[i].url, assignments[i].clickUpDueDate, list.id); //create the task
-        if(task.code != 200){
+        if(task.code != 200 && task.code != 100 /* 100 is the code im using to track invalid dates, but we don't need to say it failed */){
             console.log("[GENERATION] Error creating task: ".red);
             createdAllTasks = false;
             continue;
         }else{
-            console.log("[GENERATION]".blue + " Created task with id: ".white + String(task.body.id).cyan + " in list ".white + String(list.name).cyan);
+            if(task.body.id != undefined){
+                console.log("[GENERATION]".blue + " Created task with id: ".white + String(task.body.id).cyan + " in list ".white + String(list.name).cyan);
+            }else{
+                console.log("[GENERATION]".blue + " Skipped assignment with: ".white + String(assignments[i].name).cyan + " due to invalid date".white);
+            }
+
         }
     }
     if(createdAllTasks) {

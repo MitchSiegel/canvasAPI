@@ -244,28 +244,9 @@ label {
   border-color: #3e6baf;
   box-shadow: 0 0 0 0.125em rgba(62, 107, 175, 0.25);
 }
-/*tooltip css
-.tooltip {
-  font-size: 0.8rem;
-  background-color: #6272a4;
-  color: #fff;
-  border-radius: 4px;
-  padding: 0.25rem 0.5rem;
+.notify{
+  z-index: 999;position: absolute;bottom: 50px;left:50px; width:200px; text-align: center; transition: all 0.5s ease-in-out;
 }
-
-.tooltip::before {
-  border-color: #6272a4 transparent;
-}
-
-/* Add this code to your CSS 
-.has-tooltip-arrow::after {
-  background-color: #6272a4;
-}
-
-.has-tooltip-arrow[data-tooltip]::before {
-  border-color: transparent transparent #6272a4 transparent;
-}
-*/
 
 </style>
 </head>
@@ -338,7 +319,7 @@ label {
                 <input class="input" type="date" id="cutoffDate">
               </div>
             </div>
-            <div class="field">
+            <div class="field is-hidden">
               <label class="label">
                 Ignore Tags (not done)
                 <span class="icon is-small has-tooltip-arrow has-tooltip-right" data-tooltip="Assignments' name that have tags within them will be ignored.">
@@ -451,6 +432,9 @@ label {
       
     </div>
   </section>
+  <div class="notification is-success notify is-hidden" id="generateNotify">
+    Success
+  </div>
 </body>
 <script>
     let currentParam;
@@ -470,6 +454,8 @@ label {
       const clickUpList = document.getElementById('clickUpList');
       const ignoreDuplicates = document.getElementById('ignoreDuplicates');
       const ignoreTags = document.getElementById('ignore-tags');
+
+      console.log(notify)
       new BulmaTagsInput(ignoreTags);
       settingsIcon.addEventListener('click', () => {
         settingsModal.classList.add('is-active');
@@ -574,6 +560,7 @@ label {
         }
         settingsModal.classList.remove('is-active');
     }
+    const notify = document.getElementById('generateNotify');
     function generate(){
         console.log(clickUpList.value);
         console.log(ignoreDuplicates.checked);
@@ -584,6 +571,23 @@ label {
         }).then(res => {
             if (res.ok) {
                 console.log('Assignments generated');
+                notify.classList.remove('is-hidden');
+                setTimeout(() => {
+                    notify.classList.add('is-hidden');
+                }, 3000);
+            }else{
+                console.log('Error generating assignments');
+                notify.classList.remove('is-hidden');
+                notify.classList.remove('is-success')
+                notify.classList.add('is-danger');
+                notify.innerHTML = 'Error generating assignments';
+                setTimeout(() => {
+                    notify.classList.add('is-hidden');
+                    notify.classList.add('is-success')
+                    notify.classList.remove('is-danger');
+                    notify.innerHTML = 'Success';
+                }, 3000);
+
             }
         })
     }
