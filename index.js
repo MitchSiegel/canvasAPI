@@ -7,6 +7,7 @@ import { promises as fs, existsSync as existsSync} from 'fs'; //handles file sys
 import ejs from 'ejs';
 dotenv.config() // load environment variables from .env file
 import colors from 'colors';
+import {compareTwoStrings, findBestMatch} from 'string-similarity';
 
 const app = express();
 app.set("view engine", "ejs");
@@ -344,6 +345,30 @@ async function createClickUpTask(name, description, due, listId){
     return {body: json, code: response.status};
 };
 
+async function getClickUpListTasks(listId){
+    if(Settings.clickUpKey == "") return;
+    if(Settings.clickUp.spaces.length == 0) return;
+    console.log("[CLICKUP]".green + "Loading tasks for list ID".white + ` ${listId}`.green);
+    var myHeaders = new Headers();
+    myHeaders.append("Content-Type", "application/json");
+    myHeaders.append("Authorization", Settings.clickUpKey);
+
+    var requestOptions = {
+        method: 'GET',
+        headers: myHeaders,
+        redirect: 'follow'
+    };
+
+    let responseData = await fetch(`https://api.clickup.com/api/v2/list/${listId}/task`, requestOptions);
+    let data = await responseData.json();
+    let taskNames = [];
+    for(var i = 0; i < data.tasks.length; i++){
+        taskNames.push(data.tasks[i].name);
+    }
+    console.log("[CLICKUP]".green + " Loaded tasks for list ID".white + ` ${listId}`.green);
+    return taskNames;
+    
+}
 //function to save settings to persistent file
 async function saveSettings() {
     let fileData = await fs.readFile(persistentFile, 'utf8');
@@ -396,7 +421,7 @@ app.get('/api/hide/:id', async(req, res) => {
     res.json({success: true});
 });
 
-//api to save clickup or canvas key
+//api to save clickup or canvas key (from web UI)
 app.get('/api/saveKey/:keyType/:key', async(req, res) => {
     let keyType = req.params.keyType;
     let key = req.params.key;
@@ -439,11 +464,12 @@ app.get("/api/getAssignments/:courseId", async(req, res) => {
 });
 
 app.get("/api/generate", async(req, res) => {
-    //all things here are passed by querys, we need to get them all
+    //all things here are passed by query, we need to get them all
     let courseId = req.query.courseID;
     let clickUpList = req.query.clickUpList;
     //future feature but still keeping this code here, ignoreDuplicates is a setting that will ignore duplicate assignments, and is passed to this url as a query parameter, it is optional
     let ignoreDuplicates = req.query.ignoreDuplicates || false;
+    console.log(ignoreDuplicates)
     //a lot of things are required for this to work, so we need to check if they are all there
     //find course and make sure its valid
     let course = Courses.find(course => course.getId() == courseId);
@@ -469,19 +495,31 @@ app.get("/api/generate", async(req, res) => {
         res.json({success: false, error: "Invalid clickup list id"});
         return;
     }
-
-    console.log("[API]".cyan + " Generating ClickUp Tasks for".white + " course ".white + course.getName().cyan + " and ClickUp list ".white + String(list.name).cyan);
+    let clickUpTasks = [];
+    //we really only need to get the tasks if we are ignoring duplicates. Getting the task will slow down the process, so we only want to do it if we need to
+    if(ignoreDuplicates == "true") {
+        clickUpTasks = await getClickUpListTasks(list.id);
+    }
+    console.log("[API]".cyan + " Generating ClickUp Tasks for".white + " course ".white + course.getName().yellow + " and ClickUp list ".white + String(list.name).green);
     let createdAllTasks = true;
-    //we need to loop through the assigment list and create a new assignment for each one
+    //we need to loop through the assignment list and create a new assignment for each one
     let assignments = course.getAssignments();
     for(let i=0; i < assignments.length; i++) {
+        if(ignoreDuplicates == "true") {
+            //check if the assignment already exists in clickup
+            let a = findBestMatch(assignments[i].name, clickUpTasks);
+            if(a.bestMatch.rating > 0.85) {
+                console.log("[GENERATION]".blue + " Skipping task ".white + String(a.bestMatch.target).blue + " because it already exists in ClickUp".white);
+                continue;
+            }
+        }
         let task = await createClickUpTask(assignments[i].name, assignments[i].url, assignments[i].clickUpDueDate, list.id); //create the task
         if(task.code != 200){
-            console.log("[CLICKUP] Error creating task: ".red);
+            console.log("[GENERATION] Error creating task: ".red);
             createdAllTasks = false;
             continue;
         }else{
-            console.log("[CLICKUP]".green + " Created task with id: ".white + String(task.body.id).cyan + " in list ".white + String(list.name).cyan);
+            console.log("[GENERATION]".blue + " Created task with id: ".white + String(task.body.id).cyan + " in list ".white + String(list.name).cyan);
         }
     }
     if(createdAllTasks) {

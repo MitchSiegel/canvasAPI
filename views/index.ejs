@@ -5,7 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Thingy</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.9.3/css/bulma.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@creativebulma/bulma-tooltip@1.2.0/dist/bulma-tooltip.min.css" integrity="sha256-OdzWB7wl1AMkFaqhYBnoQJGUJMDAexXa44rXs/d2n4A=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://www.jsdelivr.com/package/npm/@creativebulma/bulma-tagsinput/dist/css/bulma-tagsinput.min.css" />
   <script src="https://kit.fontawesome.com/943ab53432.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@creativebulma/bulma-tagsinput@1.0.3/dist/js/bulma-tagsinput.min.js"></script>
   <style>
     html{
         background-color: #1e2029;
@@ -226,6 +229,43 @@ label {
   100% { transform: rotate(360deg); }
 }
 
+/* input picker  */
+.modal-card-body .input[type="date"] {
+  background-color: #282a36;
+  border-color: #282a36;
+  color: #fff;
+}
+
+.modal-card-body .input[type="date"]:hover {
+  border-color: #3e6baf;
+}
+
+.modal-card-body .input[type="date"]:focus {
+  border-color: #3e6baf;
+  box-shadow: 0 0 0 0.125em rgba(62, 107, 175, 0.25);
+}
+/*tooltip css
+.tooltip {
+  font-size: 0.8rem;
+  background-color: #6272a4;
+  color: #fff;
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+}
+
+.tooltip::before {
+  border-color: #6272a4 transparent;
+}
+
+/* Add this code to your CSS 
+.has-tooltip-arrow::after {
+  background-color: #6272a4;
+}
+
+.has-tooltip-arrow[data-tooltip]::before {
+  border-color: transparent transparent #6272a4 transparent;
+}
+*/
 
 </style>
 </head>
@@ -287,6 +327,28 @@ label {
                 </div>
               </div>
             </div>
+            <div class="field">
+              <label class="label">
+                Cutoff Date
+                <span class="icon is-small has-tooltip-arrow has-tooltip-right" data-tooltip="Assignments due after this date will not be added.">
+                  <i class="fad fa-question-circle"></i>
+                </span>
+              </label>
+              <div class="control">
+                <input class="input" type="date" id="cutoffDate">
+              </div>
+            </div>
+            <div class="field">
+              <label class="label">
+                Ignore Tags (not done)
+                <span class="icon is-small has-tooltip-arrow has-tooltip-right" data-tooltip="Assignments' name that have tags within them will be ignored.">
+                  <i class="fad fa-question-circle"></i>
+                </span>
+              </label>
+              <div class="control">
+                <input class="input" type="text" data-type="tags" placeholder="Choose Tags" id="ignore-tags" disabled>
+              </div>
+            </div>
             <div class="center-container">
             <div class="field is-horizontal">
               <div class="field-label is-normal">
@@ -296,7 +358,7 @@ label {
                 <div class="field">
                   <div class="control">
                     <label class="switch">
-                      <input type="checkbox" id="ignoreDuplicates">
+                      <input type="checkbox" id="ignoreDuplicates" checked>
                       <span class="slider round"></span>
                     </label>
                   </div>
@@ -407,7 +469,8 @@ label {
       const submitButton = document.getElementById('generate');
       const clickUpList = document.getElementById('clickUpList');
       const ignoreDuplicates = document.getElementById('ignoreDuplicates');
-  
+      const ignoreTags = document.getElementById('ignore-tags');
+      new BulmaTagsInput(ignoreTags);
       settingsIcon.addEventListener('click', () => {
         settingsModal.classList.add('is-active');
       });
@@ -421,6 +484,7 @@ label {
       });
   
       generateButtons.forEach(button => {
+        
         button.addEventListener('click', async(event) => {
             currentParam = event.currentTarget.dataset.param;
             console.log(currentParam);
