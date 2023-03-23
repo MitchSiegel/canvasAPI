@@ -8,12 +8,12 @@ import ejs from 'ejs';
 dotenv.config() // load environment variables from .env file
 import colors from 'colors';
 import {compareTwoStrings, findBestMatch} from 'string-similarity';
-
+import compression from 'compression';
 const app = express();
 app.set("view engine", "ejs");
 app.use(express.static('public'));
+app.use(compression()); //compresses the web page
 
-let firstLoad = true;
 let persistentFile = "persistent.json"; //file to store data in
 let Settings = {};
 let Courses = []; //array of courses
@@ -427,7 +427,7 @@ app.get('/api/hide/:id', async(req, res) => {
         console.log("[API]".cyan + " Hiding course with id: ".white + req.params.id.cyan);
     }
     await fs.writeFile(persistentFile, JSON.stringify(fileData));
-    res.json({success: true});
+    res.status(200).json({success: true});
 });
 
 //api to save clickup or canvas key (from web UI)
@@ -437,17 +437,17 @@ app.get('/api/saveKey/:keyType/:key', async(req, res) => {
     if(keyType == "canvas" && key != "") {
         Settings.canvasKey = key;
         await saveSettings();
-        res.json({success: true});        
+        res.status(200).json({success: true});     
     } else if(keyType == "clickup" && key != "") {
         Settings.clickUpKey = key;
         await saveSettings();
-        res.json({success: true});
+        res.status(200).json({success: true});
     } else if(keyType == "defaultClickUpSpace" && key != "") {
         Settings.clickUp.defaultSpaceId = key;
         await saveSettings();
-        res.json({success: true});
+        res.status(200).json({success: true});
     } else {
-        res.json({success: false});
+        res.status(401).json({success: false});
         return;
     }
 });
