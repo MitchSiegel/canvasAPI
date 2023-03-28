@@ -1,23 +1,22 @@
 import fetch from 'node-fetch'; //handles http requests
 import moment from 'moment'; //handles dates
-import open from 'open'; //open the browser
-import * as dotenv from 'dotenv' // see https://github.com/motdotla/dotenv#how-do-i-use-dotenv-with-import
-import express from 'express'; //handles web interface and api
+import express, { json } from 'express'; //handles web interface and api
 import { promises as fs, existsSync as existsSync} from 'fs'; //handles file system
-import ejs from 'ejs';
-dotenv.config() // load environment variables from .env file
 import colors from 'colors';
 import {compareTwoStrings, findBestMatch} from 'string-similarity';
+import expressWs from 'express-ws';
 import compression from 'compression';
-const app = express();
+const { app, getWss, applyTo } = expressWs(express());
+//const app = express();
 app.set("view engine", "ejs");
 app.use(express.static('public'));
+
 app.use(compression()); //compresses the web page
+
 
 let persistentFile = "persistent.json"; //file to store data in
 let Settings = {};
 let Courses = []; //array of courses
-//let Spaces = []; //array of spaces
 
 
 //classes start 
@@ -26,26 +25,24 @@ class Course {
     constructor(name, id, icsURL) {
         this.name = name;
         this.id = id;
-        this.icsURL = icsURL;
-        this.Assignments = [];
+        this.assignments = [];
+        //this.icsURL = icsURL; unused
     }
 
     //add an assignment to the course
     addAssignment(assignment) {
-        this.Assignments.push(assignment);
+        this.assignments.push(assignment);
     }
 
     //get the assignments from the course
     getAssignments() {
-        return this.Assignments;
+        return this.assignments;
     }
 
     //print course info
     print() {
         console.log(this.name);
         console.log(this.id);
-        console.log(this.icsURL);
-        console.log(this.Assignments);
     }
 
     //get course id
@@ -115,7 +112,7 @@ if(!existsSync(persistentFile)){
                 userId:"",
                 spaces: [],
                 defaultSpaceId: "",
-                defaultListId: ""
+                defaultListId: "" //unused for now 
 
             }
         },
@@ -170,7 +167,7 @@ async function loadCourses(forcePull) {
     for (let i = 0; i < data.length; i++) {
         if(data[i].calendar == null) continue; //skip courses that don't have an ics file
         let course = new Course(data[i].name, data[i].id, data[i].calendar.ics);
-        if(!Settings.ignore.includes(course.getId())){
+        if(!Settings.ignore.includes(String(course.getId()))){
             Courses.push(course);
         }
     }
@@ -468,91 +465,129 @@ app.get("/api/getAssignments/:courseId", async(req, res) => {
     }
     //temporarily disabled, as im styling it in the frontend and don't want so many requests
     await loadAssignments(course);
-    res.json({success: true, assignments: course.Assignments,courseName: course.getName()});
+    res.json({success: true, assignments: course.assignments,courseName: course.getName()});
     //es.json({success: true, assignments: [], );
 });
 
-app.get("/api/generate", async(req, res) => {
-    //all things here are passed by query, we need to get them all
-    let courseId = req.query.courseID;
-    let clickUpList = req.query.clickUpList;
-    //future feature but still keeping this code here, ignoreDuplicates is a setting that will ignore duplicate assignments, and is passed to this url as a query parameter, it is optional
-    let ignoreDuplicates = req.query.ignoreDuplicates || false;
-    let cutOffDate = req.query.cutOffDate;
-    if(cutOffDate == "none") {
-        cutOffDate = undefined;
-    }else{
-        cutOffDate = new moment(cutOffDate);
-    }
-    //a lot of things are required for this to work, so we need to check if they are all there
-    //find course and make sure its valid
-    let course = Courses.find(course => course.getId() == courseId);
-    if(course == undefined) {
-        res.json({success: false, error: "Invalid course id"});
-        return;
-    }
-    if(course.getAssignments().length == 0) {
-        res.json({success: false, error: "No assignments found for course"});
-        return;
-    }
-    //find clickup list and make sure its valid
-    let list = undefined;
-    for(let i=0; i < Settings.clickUp.spaces.length; i++) {
-        let space = Settings.clickUp.spaces[i];
-        for(let j=0; j < space.lists.length; j++) {
-            if(space.lists[j].id == clickUpList) {
-                list = space.lists[j];
-            }
-        }
-    }
-    if(list == undefined) {
-        res.json({success: false, error: "Invalid clickup list id"});
-        return;
-    }
-    let clickUpTasks = ["none"];
-    //we really only need to get the tasks if we are ignoring duplicates. Getting the task will slow down the process, so we only want to do it if we need to
-    if(ignoreDuplicates == "true") {
-        clickUpTasks = await getClickUpListTasks(list.id);
-    }
-    console.log("[API]".cyan + " Generating ClickUp Tasks for".white + " course ".white + course.getName().yellow + " and ClickUp list ".white + String(list.name).green);
-    let createdAllTasks = true;
-    //we need to loop through the assignment list and create a new assignment for each one
-    let assignments = course.getAssignments();
-    for(let i=0; i < assignments.length; i++) {
-        if(ignoreDuplicates == "true") {
-            //check if the assignment already exists in clickup
-            let a = findBestMatch(assignments[i].name, clickUpTasks);
-            if(a.bestMatch.rating > 0.85) {
-                console.log("[GENERATION]".blue + " Skipping task ".white + String(a.bestMatch.target).blue + " because it already exists in ClickUp".white);
-                continue;
-            }
-        }
-        if(cutOffDate != undefined) {
-            if(moment(assignments[i].dueDate).isAfter(cutOffDate)) {
-                console.log("[GENERATION]".blue + " Skipping task ".white + String(assignments[i].name).blue + " because it is after the cutoff date".white);
-                continue;
-            }
-        }
-        let task = await createClickUpTask(assignments[i].name, assignments[i].url, assignments[i].clickUpDueDate, list.id); //create the task
-        if(task.code != 200 && task.code != 100 /* 100 is the code im using to track invalid dates, but we don't need to say it failed */){
-            console.log("[GENERATION] Error creating task: ".red);
-            createdAllTasks = false;
-            continue;
-        }else{
-            if(task.body.id != undefined){
-                console.log("[GENERATION]".blue + " Created task with id: ".white + String(task.body.id).cyan + " in list ".white + String(list.name).cyan);
-            }else{
-                console.log("[GENERATION]".blue + " Skipped assignment with: ".white + String(assignments[i].name).cyan + " due to invalid date".white);
-            }
-
-        }
-    }
-    if(createdAllTasks) {
-        res.json({success: true});
-    }else{
-        res.json({success: false});
-    }
+app.get("/test", async(req, res) => {
+    res.render("test");
 });
+
+
+//new endpoint for generating assignments, will use web socket to send progress updates
+app.ws('/ws/generate', function(ws, req) {
+    let requestInfo = {};
+    let requestProgress = 0;
+    
+    ws.on('open', async function open() {
+        console.log("[WS]".cyan + " Connection opened".white);
+    });
+    ws.on('message', async function(msg) {
+        if(!JSON.parse(msg)) return;
+        //handle the received message, which will be data first and will be a json object
+        let data = JSON.parse(msg);
+        if(data && data.msgType == "generateData") {
+            console.log("[WS]".cyan + " Generate request received".white);
+            requestInfo = data;
+            if(requestInfo.clickUpList && requestInfo.cutOffDate && requestInfo.courseId) {
+                //send back a message saying that the data was received, and that the generation is starting
+                ws.send(JSON.stringify({msgType: "dataUpdate", progress: 0, code: 200, status: "All data received, starting generation"}));
+                let cutOffDate = requestInfo.cutOffDate;
+                let ignoreDuplicates = requestInfo.ignoreDuplicates == true ? true : false;
+                let clickUpList = requestInfo.clickUpList;
+                let courseId = requestInfo.courseId;
+                //start the generation process
+                if(cutOffDate == "none") {
+                    cutOffDate = undefined;
+                }else{
+                    cutOffDate = new moment(cutOffDate);
+                }
+                //a lot of things are required for this to work, so we need to check if they are all there
+                //find course and make sure its valid
+                let course = Courses.find(course => course.getId() == courseId);
+                if(course == undefined) {
+                    ws.send(JSON.stringify({msgType: "processEnd", progress: 0, code: 400, status: "Invalid course id"}));
+                    return;
+                }
+                if(course.getAssignments().length == 0) {
+                    ws.send(JSON.stringify({msgType: "processEnd", progress: 0, code: 400, status: "No assignments found for course"}));
+                    return;
+                }
+                //find clickup list and make sure its valid
+                let list = undefined;
+                for(let i=0; i < Settings.clickUp.spaces.length; i++) {
+                    let space = Settings.clickUp.spaces[i];
+                    for(let j=0; j < space.lists.length; j++) {
+                        if(space.lists[j].id == clickUpList) {
+                            list = space.lists[j];
+                        }
+                    }
+                }
+                if(list == undefined) {
+                    ws.send(JSON.stringify({msgType: "processEnd", progress: 0, code: 400, status: "Invalid clickup list id"}));
+                    return;
+                }
+                let clickUpTasks = ["none"];
+                //we really only need to get the tasks if we are ignoring duplicates. Getting the task will slow down the process, so we only want to do it if we need to
+                if(ignoreDuplicates) {
+                    clickUpTasks = await getClickUpListTasks(list.id);
+                }
+                console.log("[API]".cyan + " Generating ClickUp Tasks for".white + " course ".white + course.getName().yellow + " and ClickUp list ".white + String(list.name).green);
+                //we need to loop through the assignment list and create a new assignment for each one
+                let assignments = course.getAssignments();
+                for(let i=0; i < assignments.length; i++) {
+                    requestProgress = Math.round((i / assignments.length) * 100);   
+                    ws.send(JSON.stringify({msgType: "taskStart", assignmentName: assignments[i].name ,progress: requestProgress, code: 200, status: "Generating tasks"}));
+                    if(ignoreDuplicates) {
+                        //check if the assignment already exists in clickup
+                        let a = findBestMatch(assignments[i].name, clickUpTasks);
+                        if(a.bestMatch.rating > 0.85) {
+                            console.log("[GENERATION]".blue + " Skipping task ".white + String(a.bestMatch.target).blue + " because it already exists in ClickUp".white);
+                            ws.send(JSON.stringify({msgType: "taskEnd", success:false, assignmentName: assignments[i].name ,progress: requestProgress, code: 200, reason: "duplicate"}));
+                            continue;
+                        }
+                    }
+                    if(cutOffDate != undefined) {
+                        if(moment(assignments[i].dueDate).isAfter(cutOffDate)) {
+                            console.log("[GENERATION]".blue + " Skipping task ".white + String(assignments[i].name).blue + " because it is after the cutoff date".white);
+                            ws.send(JSON.stringify({msgType: "taskEnd", success:false, assignmentName: assignments[i].name ,progress: requestProgress, code: 200, reason: "cutOffDate"}));
+                            continue;
+                        }
+                    }
+                    let task = await createClickUpTask(assignments[i].name, assignments[i].url, assignments[i].clickUpDueDate, list.id); //create the task
+                    if(task.code != 200 && task.code != 100 /* 100 is the code im using to track invalid dates, but we don't need to say it failed */){
+                        console.log("[GENERATION] Error creating task: ".red);
+                        ws.send(JSON.stringify({msgType: "taskEnd", success:false, assignmentName: assignments[i].name ,progress: requestProgress, code: task.code, reason: "unknown"}));
+                        continue;
+                    }else{
+                        if(task.body.id != undefined){
+                            ws.send(JSON.stringify({msgType: "taskEnd", success:true, assignmentName: assignments[i].name ,progress: requestProgress, code: 200, reason: "none"}));
+                            console.log("[GENERATION]".blue + " Created task with id: ".white + String(task.body.id).cyan + " in list ".white + String(list.name).cyan);
+                        }else{
+                            ws.send(JSON.stringify({msgType: "taskEnd", success:false, assignmentName: assignments[i].name ,progress: requestProgress, code: 200, reason: "invalidDate"}));
+                            console.log("[GENERATION]".blue + " Skipped assignment with: ".white + String(assignments[i].name).cyan + " due to invalid date".white);
+                        }
+            
+                    }
+                }
+                ws.send(JSON.stringify({msgType: "done", progress: 100, code: 200, status: "Finished"}));
+                ws.close();
+            }else{
+                let missingDataType = "";
+                if(!requestInfo.clickUpList) {
+                    missingDataType = "clickUpList";
+                }else if(!requestInfo.ignoreDuplicates) {
+                    missingDataType = "ignoreDuplicates";
+                }else if(!requestInfo.cutOffDate) {
+                    missingDataType = "cutOffDate";
+                }else if(!requestInfo.courseId) {
+                    missingDataType = "courseId";
+                }
+                ws.send(JSON.stringify({msgType: "dataUpdate", progress: 0, code: 400, status: "Missing data - " + missingDataType}));
+            }
+        }
+    });
+  });
 //start the server, either on port 3000 or the port specified in the environment variables
 app.listen(process.env.PORT || 3001, () => {
     console.log("[SERVER]".blue +  ` Server started on port `.white + `${(process.env.PORT || 3001)}`.blue);

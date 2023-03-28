@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Thingy</title>
+  <title>Canvas -> ClickUp</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.9.3/css/bulma.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@creativebulma/bulma-tooltip@1.2.0/dist/bulma-tooltip.min.css" integrity="sha256-OdzWB7wl1AMkFaqhYBnoQJGUJMDAexXa44rXs/d2n4A=" crossorigin="anonymous">
   <link rel="stylesheet" href="https://www.jsdelivr.com/package/npm/@creativebulma/bulma-tagsinput/dist/css/bulma-tagsinput.min.css" />
@@ -36,18 +36,33 @@
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
       transition: all 0.3s ease;
     }
+    .task-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      background-color: #282a36;
+      margin-left:5%;
+      margin-right:5%;
+      padding: 1rem;
+      border-radius: 6px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      transition: all 0.3s ease;
+    }
     .item{
       transition: box-shadow 0.3s ease-in-out;
     }
     .item:hover {
-      box-shadow: 0 0 10px rgba(98, 114, 164, 0.8);
-}
+      box-shadow: 0 0 15px rgba(98, 114, 164, 0.8);
+      transform: scale(1.03);
+    }
+
     .item-container:hover {
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
       transform: translateY(-2px);
     }
 
-    .item-title {
+    .item-title, .task-title{
       flex-grow: 1;
       text-align: left;
     }
@@ -57,8 +72,9 @@
       justify-content: flex-end;
     } 
     .title{
-        color:white;
-    }
+    color: #6272a4;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
 
     .button {
       margin-left: 0.5rem;
@@ -81,7 +97,10 @@
 .modal-card-title {
   color: #fff;
 }
-
+.content ul{
+  margin-left:0em;
+  margin-top:0em;
+}
 .modal-card-body{
   background-color: #1e2029 !important;
 }
@@ -247,7 +266,43 @@ label {
 .notify{
   z-index: 999;position: absolute;bottom: 50px;left:50px; width:200px; text-align: center; transition: all 0.5s ease-in-out;
 }
-
+.not-active{
+  color: #fff;
+  opacity: 0.5;
+}
+.task-container.active i{
+  color:#2f89fc;
+}
+.task-container.active{
+  color:white;
+}
+.task-container.added{
+  color:#83e85a;
+}
+.task-container.failed{
+  color:#ff5555;
+}
+.task-container.skipped{
+  color:#ff79c6;
+} 
+.task-container.ignored{
+  color:#f1fa8c;
+}
+.custom-colors{
+  width: 100%;
+  height: 15px;
+  margin-bottom: 10px;
+  transition: 1s all;
+}
+.custom-colors::-webkit-progress-value{
+  background-color:teal !important;
+}
+.custom-colors::-webkit-progress-bar{
+  background-color: #282a36 !important;
+}
+.custom-colors[value = "100"]::-webkit-progress-value{
+  background-color: #50fa7b !important;
+}
 </style>
 </head>
 <body>
@@ -275,7 +330,7 @@ label {
       </div>
       <% }) %>
   
-      <!-- generate model -->
+      <!-- generate modal -->
       <div class="modal" id="myModal">
         <div class="modal-background"></div>
         <div class="modal-card">
@@ -350,11 +405,30 @@ label {
             
           </section>
           <footer class="modal-card-foot">
-            <button class="button is-info is-centered" id="generate" disabled onclick="generate()">Submit</button>
+            <button class="button is-info is-centered" id="generate" disabled onclick="generateTwo()">Submit</button>
           </footer>
         </div>
       </div>   
       
+      <!-- during generation modal -->
+      <div class="modal" id="taskModal">
+        <div class="modal-background"></div>
+        <div class="modal-card">
+          <header class="modal-card-head">
+            <p class="modal-card-title">Generation Status</p>
+            <button class="delete" aria-label="close"></button>
+          </header>
+          
+          <section class="modal-card-body">
+            <progress class="progress custom-colors is-hidden" value="15" max="100">15%</progress>
+            <div class="content">
+              <ul id="taskList">
+
+              </ul>
+            </div>
+          </section>
+        </div>
+      </div>
       
       <!-- settings modal -->
       <div class="modal" id="settingsModal">
@@ -432,19 +506,17 @@ label {
       
     </div>
   </section>
-  <div class="notification is-success notify is-hidden" id="generateNotify">
-    Success
-  </div>
 </body>
 <script>
     let currentParam;
-
+    const progressBar = document.querySelector('.progress');
     document.addEventListener('DOMContentLoaded', () => {
       const settingsModal = document.getElementById('settingsModal');
       const settingsIcon = document.querySelector('.settings-icon');
       const settingsCloseButton = settingsModal.querySelector('.delete');
-  
+      const taskList = document.getElementById('taskList');
       const myModal = document.getElementById('myModal');
+      const taskModal = document.getElementById('taskModal');
       const generateButtons = document.querySelectorAll('.button.is-primary');
       const myModalCloseButton = myModal.querySelector('.delete');
       const preLoad = document.getElementById('preLoad');
@@ -454,6 +526,7 @@ label {
       const clickUpList = document.getElementById('clickUpList');
       const ignoreDuplicates = document.getElementById('ignoreDuplicates');
       const ignoreTags = document.getElementById('ignore-tags');
+
       let cutoffDate = document.querySelector('#cutoffDate');
       let today = new Date().toISOString().split('T')[0];
       cutoffDate.setAttribute("min",today);
@@ -464,6 +537,14 @@ label {
   
       settingsCloseButton.addEventListener('click', () => {
         settingsModal.classList.remove('is-active');
+      });
+
+      taskModal.querySelector('.delete').addEventListener('click', () => {
+        taskModal.classList.remove('is-active');
+      });
+
+      taskModal.querySelector('.modal-background').addEventListener('click', () => {
+        taskModal.classList.remove('is-active');
       });
   
       settingsModal.querySelector('.modal-background').addEventListener('click', () => {
@@ -483,6 +564,24 @@ label {
             load.classList.add('is-hidden');
             submitButton.disabled = false;
             postLoad.innerHTML = `${data.courseName} has ${data.assignments.length} future assignments.`;
+            //load in the tasks into the modal
+            taskList.innerHTML = '';
+            data.assignments.forEach(assignment => {
+              const task = `
+                  <li class="task-container not-active" id="task-${assignment.name.replace(/ /g,'-')}">
+                    <div class="task-title">
+                      ${assignment.name}
+                    </div>
+                    <div class="button-container">
+                      <span class="icon">
+                        <i class="fas fa-pause"></i>
+                      </span>
+                    </div>
+                  </li>
+                `
+              taskList.innerHTML += task;
+              progressBar.value = 0;
+            });
         });
     });
 
@@ -559,34 +658,62 @@ label {
         }
         settingsModal.classList.remove('is-active');
     }
-    const notify = document.getElementById('generateNotify');
-    function generate(){
+    //new generate function, uses websockets
+    async function generateTwo(){
         let cutOff = (cutoffDate.value == "") ? "none" : cutoffDate.value;
-        fetch(`/api/generate?clickUpList=${clickUpList.value}&ignoreDuplicates=${ignoreDuplicates.checked}&courseID=${currentParam}&cutOffDate=${cutOff}`, {
-            method: 'GET',
-        }).then(res => {
-            if (res.ok) {
-                console.log('Assignments generated');
-                notify.classList.remove('is-hidden');
-                setTimeout(() => {
-                    notify.classList.add('is-hidden');
-                }, 3000);
-            }else{
-                console.log('Error generating assignments');
-                notify.classList.remove('is-hidden');
-                notify.classList.remove('is-success')
-                notify.classList.add('is-danger');
-                notify.innerHTML = 'Error generating assignments';
-                setTimeout(() => {
-                    notify.classList.add('is-hidden');
-                    notify.classList.add('is-success')
-                    notify.classList.remove('is-danger');
-                    notify.innerHTML = 'Success';
-                }, 3000);
-
+        const websocket = new WebSocket('ws://localhost:3001/ws/generate');
+        //wait for the websocket to open
+        await new Promise(resolve => websocket.onopen = resolve);
+        console.log(ignoreDuplicates.checked)
+        websocket.send(JSON.stringify({
+            msgType: "generateData",
+            clickUpList: clickUpList.value,
+            ignoreDuplicates: ignoreDuplicates.checked,
+            courseId: currentParam,
+            cutOffDate: cutOff
+        }));
+        taskModal.classList.add('is-active');
+        //event listener for when the websocket sends a message
+        websocket.onmessage = function (event) {
+            console.log(event.data);
+            let data = JSON.parse(event.data);
+            console.log(data);
+          if(data.msgType == "taskStart"){
+            const element = document.getElementById(`task-${data.assignmentName.replace(/ /g,'-')}`);
+            const elementIcon = element.querySelector('i');
+            element.classList.remove('not-active');
+            element.classList.add('active'); 
+            elementIcon.classList.remove('fa-pause');
+            elementIcon.classList.add('fa-spinner');
+            elementIcon.classList.add('fa-spin');
+          };
+          if(data.msgType == "taskEnd"){
+            const element = document.getElementById(`task-${data.assignmentName.replace(/ /g,'-')}`);
+            const elementIcon = element.querySelector('i');
+            element.classList.remove('active');
+            elementIcon.classList.remove('fa-spinner');
+            elementIcon.classList.remove('fa-spin');
+            if(data.success){
+                element.classList.add('added'); 
+                elementIcon.classList.add('fa-check');
+            }else if(data.reason == "duplicate" || data.reason == "cutOffDate"){
+                element.classList.add('ignored');
+                elementIcon.classList.add('fa-forward');
+            }else if(data.reason == "invalidDate"){
+                element.classList.add('skipped');
+                elementIcon.classList.add('fa-calendar-circle-exclamation');
+            }else if(data.reason == "unknown"){
+                element.classList.add('failed');
+                elementIcon.classList.add('fa-question-circle');
             }
-        })
+            progressBar.setAttribute('value', data.progress);
+          };
+          if(data.msgType == "done"){
+            progressBar.setAttribute('value', 100);
+          };
+        }
     }
+    
     let canvasKeySaved = "<%= canvasKey %>";
     let clickUpKeySaved = "<%= clickUpKey %>";
     let defaultClickUpSpaceSaved = "<%= clickUp.defaultSpaceId %>";
