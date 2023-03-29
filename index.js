@@ -2,7 +2,7 @@ import fetch from 'node-fetch'; //handles http requests
 import moment from 'moment'; //handles dates
 import express, { json } from 'express'; //handles web interface and api
 import { promises as fs, existsSync as existsSync} from 'fs'; //handles file system
-import colors from 'colors';
+import colors from 'colors'; //ooh pretty colors in terminal
 import {compareTwoStrings, findBestMatch} from 'string-similarity';
 import expressWs from 'express-ws';
 import compression from 'compression';
@@ -489,12 +489,19 @@ app.ws('/ws/generate', function(ws, req) {
         if(data && data.msgType == "generateData") {
             console.log("[WS]".cyan + " Generate request received".white);
             requestInfo = data;
+            if(requestInfo.ignoreTags){
+                requestInfo.ignoreTags = requestInfo.ignoreTags.replace(/[<>/\'\"\`]/g, ' ');
+                requestInfo.ignoreTags = requestInfo.ignoreTags.split(",");
+            }else{
+                requestInfo.ignoreTags = [];
+            }
             if(requestInfo.clickUpList && requestInfo.cutOffDate && requestInfo.courseId) {
                 //send back a message saying that the data was received, and that the generation is starting
                 ws.send(JSON.stringify({msgType: "dataUpdate", progress: 0, code: 200, status: "All data received, starting generation"}));
                 let cutOffDate = requestInfo.cutOffDate;
                 let ignoreDuplicates = requestInfo.ignoreDuplicates == true ? true : false;
                 let clickUpList = requestInfo.clickUpList;
+                let ignoreTags = requestInfo.ignoreTags;
                 let courseId = requestInfo.courseId;
                 //start the generation process
                 if(cutOffDate == "none") {
@@ -544,6 +551,21 @@ app.ws('/ws/generate', function(ws, req) {
                         if(a.bestMatch.rating > 0.85) {
                             console.log("[GENERATION]".blue + " Skipping task ".white + String(a.bestMatch.target).blue + " because it already exists in ClickUp".white);
                             ws.send(JSON.stringify({msgType: "taskEnd", success:false, assignmentName: assignments[i].name ,progress: requestProgress, code: 200, reason: "duplicate"}));
+                            continue;
+                        }
+                    }
+                    if(ignoreTags.length > 0) {
+                        //check if the assignment contains any text that is included in the ignore tags
+                        let ignore = false;
+                        for(let j=0; j < ignoreTags.length; j++) {
+                            if(assignments[i].name.toLowerCase().includes(ignoreTags[j].toLowerCase())) {
+                                ignore = true;
+                                ws.send(JSON.stringify({msgType: "taskEnd", success:false, assignmentName: assignments[i].name ,progress: requestProgress, code: 200, reason: "ignoreTag"}));
+                                break;
+                            }
+                        }
+                        if(ignore) {
+                            console.log("[GENERATION]".blue + " Skipping task ".white + String(assignments[i].name).blue + " because it contains an ignored tag".white);
                             continue;
                         }
                     }
