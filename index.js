@@ -268,6 +268,7 @@ async function getClickUpSpaces(forcePull){
 async function getClickUpLists(forcePull){
     forcePull = forcePull || false;
     if(Settings.clickUpKey == "") return;
+    if(Settings.clickUp.spaces.length == 0) return; //if there are no spaces, return
     if(Settings.clickUp.spaces.length > 0 && !forcePull){ //if the spaces are already set, and we don't want a force pull, we can now check to see if there are any lists in the spaces
         let doesSpaceHaveNoLists = false; //basically we want to pull if there a space that has no lists
         for(let i = 0; i < Settings.clickUp.spaces.length; i++){
@@ -282,7 +283,6 @@ async function getClickUpLists(forcePull){
         }
     }
     console.log("[CLICKUP]".green + " ClickUp Lists loading".white);
-    if(Settings.clickUp.spaces.length == 0) return; //if there are no spaces, return
     var myHeaders = new Headers();
     myHeaders.append("Content-Type", "application/json");
     myHeaders.append("Authorization", Settings.clickUpKey);
@@ -299,14 +299,32 @@ async function getClickUpLists(forcePull){
     for(let i = 0; i < Settings.clickUp.spaces.length; i++){
         let responseData = await fetch(`https://api.clickup.com/api/v2/space/${Settings.clickUp.spaces[i].id}/list`, requestOptions);
         let data = await responseData.json();
+        let lists = data.lists;
+        await handleClickUpFolders(requestOptions,i);
         for(let j = 0; j < data.lists.length; j++){
-            let list = new List(data.lists[j].name, data.lists[j].id);
+            let list = new List(data.lists[j].name,data.lists[j].id);
             Settings.clickUp.spaces[i].lists.push(list);
         }
     }
     saveSettings();
     console.log("[CLICKUP]".green + " ClickUp Lists loaded".white);
     return Settings.clickUp.spaces;
+}
+
+
+//this is basically a helper function to getClickUpLists
+async function handleClickUpFolders(requestOptions,spaceIndex){
+    let folders = await fetch(`https://api.clickup.com/api/v2/space/${Settings.clickUp.spaces[spaceIndex].id}/folder`, requestOptions);
+    let data = await folders.json();
+    data = data.folders;
+    if(data.length == 0) return;
+    for(let i = 0; i < data.length; i++){
+        let folder = data[i];
+        if(folder.lists == undefined) continue;
+        for(let j = 0; j < folder.lists.length; j++){
+            Settings.clickUp.spaces[spaceIndex].lists.push(new List(folder.lists[j].name, folder.lists[j].id));
+        }
+    }
 }
 
 async function createClickUpTask(name, description, due, listId){
@@ -382,15 +400,17 @@ async function saveSettings() {
     fileData.Settings = Settings;
     await fs.writeFile(persistentFile, JSON.stringify(fileData));
 }
-//load in initial data, must be done before the server starts, and in order
-loadCourses().then(() => {
-    getClickUpTeamId().then(() => {
-        getClickUpSpaces().then(() => {
-            getClickUpLists();
-        });
-    });
-});
 
+async function initialLoad(){
+    await loadCourses();
+    if(true){ //eventually if I add more services, I'll add a check here to see if the user wants to use that service
+        await getClickUpTeamId();
+        await getClickUpSpaces();
+        await getClickUpLists();
+    }
+}
+
+initialLoad();
 
 //index page
 app.get('/', async(req, res) => {
@@ -468,11 +488,6 @@ app.get("/api/getAssignments/:courseId", async(req, res) => {
     res.json({success: true, assignments: course.assignments,courseName: course.getName()});
     //es.json({success: true, assignments: [], );
 });
-
-app.get("/test", async(req, res) => {
-    res.render("test");
-});
-
 
 //new endpoint for generating assignments, will use web socket to send progress updates
 app.ws('/ws/generate', function(ws, req) {
