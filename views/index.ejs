@@ -677,7 +677,6 @@ label {
         }
         //sanitize the tags, and remove all < or <, ' or ', and " or `
         tags = tags.replace(/[<>/\'\"\`]/g, ' ');
-        return;
         const websocket = new WebSocket('ws://localhost:3001/ws/generate');
         //wait for the websocket to open
         await new Promise(resolve => websocket.onopen = resolve);
