@@ -511,6 +511,7 @@ label {
     let currentParam;
     const progressBar = document.querySelector('.progress');
     const ignoreTags = document.getElementById('ignore-tags');
+    let isLoading = false;
     document.addEventListener('DOMContentLoaded', () => {
       const settingsModal = document.getElementById('settingsModal');
       const settingsIcon = document.querySelector('.settings-icon');
@@ -557,6 +558,7 @@ label {
         button.addEventListener('click', async(event) => {
             currentParam = event.currentTarget.dataset.param;
             myModal.classList.add('is-active');
+            isLoading = true;
             
             const res = await fetch('/api/getAssignments/' + currentParam);
           
@@ -582,12 +584,18 @@ label {
                 `
               taskList.innerHTML += task;
               progressBar.value = 0;
+              isLoading = false;
             });
         });
     });
 
   
       myModalCloseButton.addEventListener('click', () => {
+        //not the most elegant solution but it works, if the user tries to close the modal while the assignments are loading, it will alert them
+        if(isLoading){
+          alert("Please wait for the assignments to load before closing the modal.")
+          return;
+        }
         myModal.classList.remove('is-active');
         preLoad.classList.remove('is-hidden');
         load.classList.remove('is-hidden');
@@ -596,6 +604,10 @@ label {
       });
   
       myModal.querySelector('.modal-background').addEventListener('click', () => {
+        if(isLoading){
+          alert("Please wait for the assignments to load before closing the modal.")
+          return;
+        }
         myModal.classList.remove('is-active');
         preLoad.classList.remove('is-hidden');
         load.classList.remove('is-hidden');

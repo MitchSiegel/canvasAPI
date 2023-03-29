@@ -483,10 +483,8 @@ app.get("/api/getAssignments/:courseId", async(req, res) => {
         res.json({success: false});
         return;
     }
-    //temporarily disabled, as im styling it in the frontend and don't want so many requests
     await loadAssignments(course);
     res.json({success: true, assignments: course.assignments,courseName: course.getName()});
-    //es.json({success: true, assignments: [], );
 });
 
 //new endpoint for generating assignments, will use web socket to send progress updates
