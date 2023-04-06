@@ -3,10 +3,10 @@ import moment from 'moment'; //handles dates
 import express, { json } from 'express'; //handles web interface and api
 import { promises as fs, existsSync as existsSync} from 'fs'; //handles file system
 import colors from 'colors'; //ooh pretty colors in terminal
-import {compareTwoStrings, findBestMatch} from 'string-similarity';
+import { findBestMatch} from 'string-similarity';
 import expressWs from 'express-ws';
 import compression from 'compression';
-const { app, getWss, applyTo } = expressWs(express());
+const {app} = expressWs(express());
 //const app = express();
 app.set("view engine", "ejs");
 app.use(express.static('public'));
@@ -17,6 +17,7 @@ app.use(compression()); //compresses the web page
 let persistentFile = "persistent.json"; //file to store data in
 let Settings = {};
 let Courses = []; //array of courses
+let port = 3000; //port to run the web interface on
 
 
 //classes start 
@@ -419,7 +420,7 @@ app.get('/', async(req, res) => {
             filteredCourses.push(Courses[i]);
         }
     }
-    res.render('index', {Courses: filteredCourses, canvasKey: Settings.canvasKey, clickUpKey: Settings.clickUpKey, clickUp: Settings.clickUp});
+    res.render('index', {Courses: filteredCourses, canvasKey: Settings.canvasKey, clickUpKey: Settings.clickUpKey, clickUp: Settings.clickUp, port: process.env.PORT || port});
 });
 
 //api to hide a course
@@ -556,7 +557,7 @@ app.ws('/ws/generate', function(ws, req) {
                 //we need to loop through the assignment list and create a new assignment for each one
                 let assignments = course.getAssignments();
                 for(let i=0; i < assignments.length; i++) {
-                    requestProgress = Math.round((i / assignments.length) * 100);   
+                    requestProgress = Math.round((i / assignments.length) * 100); //for progress bar (not used yet)
                     ws.send(JSON.stringify({msgType: "taskStart", assignmentName: assignments[i].name ,progress: requestProgress, code: 200, status: "Generating tasks"}));
                     if(ignoreDuplicates) {
                         //check if the assignment already exists in clickup
@@ -587,6 +588,10 @@ app.ws('/ws/generate', function(ws, req) {
                             console.log("[GENERATION]".blue + " Skipping task ".white + String(assignments[i].name).blue + " because it is after the cutoff date".white);
                             ws.send(JSON.stringify({msgType: "taskEnd", success:false, assignmentName: assignments[i].name ,progress: requestProgress, code: 200, reason: "cutOffDate"}));
                             continue;
+                        }else{
+                           if(moment(assignments[i].dueDate).format("HH:mm") == "23:59") { //move 11:59pm assignments to 10:59pm
+                                assignments[i].clickUpDueDate = moment(assignments[i].dueDate).subtract(1, "hours").format("x");
+                            }
                         }
                     }
                     let task = await createClickUpTask(assignments[i].name, assignments[i].url, assignments[i].clickUpDueDate, list.id); //create the task
@@ -624,7 +629,7 @@ app.ws('/ws/generate', function(ws, req) {
     });
   });
 //start the server, either on port 3001 or the port specified in the environment variables
-app.listen(process.env.PORT || 3001, () => {
-    console.log("[SERVER]".blue +  ` Server started on port `.white + `${(process.env.PORT || 3001)}`.blue);
+app.listen(process.env.PORT || port, () => {
+    console.log("[SERVER]".blue +  ` Server started on port `.white + `${(process.env.PORT || port)}`.blue);
 })
 
