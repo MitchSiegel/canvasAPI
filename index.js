@@ -299,7 +299,6 @@ async function getClickUpLists(forcePull){
     for(let i = 0; i < Settings.clickUp.spaces.length; i++){
         let responseData = await fetch(`https://api.clickup.com/api/v2/space/${Settings.clickUp.spaces[i].id}/list`, requestOptions);
         let data = await responseData.json();
-        let lists = data.lists;
         await handleClickUpFolders(requestOptions,i);
         for(let j = 0; j < data.lists.length; j++){
             let list = new List(data.lists[j].name,data.lists[j].id);
@@ -328,7 +327,7 @@ async function handleClickUpFolders(requestOptions,spaceIndex){
 }
 
 async function createClickUpTask(name, description, due, listId){
-    if(isNaN(due)){
+    if(isNaN(due)){ //invalid date in the canvas assignment
         return {body: {}, code: 100};
     }
     let url = `https://api.clickup.com/api/v2/list/${listId}/task`;
@@ -344,8 +343,8 @@ async function createClickUpTask(name, description, due, listId){
         ],
         "due_date": due,
         "due_date_time": true,
-        //"start_date": task.startTime, TODO
-        //"start_date_time": true,
+        //"start_date": task.startTime  //TODO
+        //"start_date_time": true, //TODO
         "notify_all": false,
         "parent": null,
         "links_to": null,
@@ -426,16 +425,16 @@ app.get('/', async(req, res) => {
 //api to hide a course
 app.get('/api/hide/:id', async(req, res) => {
     let id = req.params.id;
-    //unhide all courses if the id is -1
 
+    //get the current hidden courses and add the new one if not already in the list 
     let fileData = await fs.readFile(persistentFile, 'utf8');
     fileData = JSON.parse(fileData);
     if(!fileData.Settings.ignore.includes(id)){ //if the course is not already in the ignore list, add it   
         Settings.ignore.push(Number(id));
         fileData.Settings.ignore.push(id);
     }
-    //crashes if there all courses are hidden, so we need to keep at least one course not hidden //TODO: fix this
 
+    //unhide all courses if the id is -1
     if(id == -1) {
         console.log("[API]".cyan + " Un-hiding all courses".white);
         Settings.ignore = [-2];
@@ -443,7 +442,8 @@ app.get('/api/hide/:id', async(req, res) => {
     }else{
         console.log("[API]".cyan + " Hiding course with id: ".white + req.params.id.cyan);
     }
-    await fs.writeFile(persistentFile, JSON.stringify(fileData));
+
+    saveSettings();
     res.status(200).json({success: true});
 });
 
@@ -623,11 +623,8 @@ app.ws('/ws/generate', function(ws, req) {
         }
     });
   });
-//start the server, either on port 3000 or the port specified in the environment variables
+//start the server, either on port 3001 or the port specified in the environment variables
 app.listen(process.env.PORT || 3001, () => {
     console.log("[SERVER]".blue +  ` Server started on port `.white + `${(process.env.PORT || 3001)}`.blue);
 })
 
-if(process.env.NODE_ENV !== 'production') {
-   // open(`http://localhost:${process.env.PORT || 3000}`); //only open the browser if we are not in production
-}

@@ -16,12 +16,10 @@ Completed Features:
 - [x] Detailed progress when adding assignments (possible with WebSockets)
 - [x] Support nicknames for courses 
 - [x] Better UI updates to show progress
+- [x] Add a way to ignore assignments that contain certain words
 
 Features to be added:
-- [ ] Add a way to ignore assignments that contain certain words
-
-Features that probably won't be added:
-- [ ] Oauth2 for ClickUp (see above)
+- [ ] monday.com support is in the works 
 
 Features that can't be added:
 - OAuth2.0 for Canvas (Cannot generate client IDs as a student)
