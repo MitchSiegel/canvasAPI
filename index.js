@@ -22,11 +22,10 @@ let port = 3000; //port to run the web interface on
 //classes start 
 
 class Course {
-    constructor(name, id, icsURL) {
+    constructor(name, id) {
         this.name = name;
         this.id = id;
         this.assignments = [];
-        //this.icsURL = icsURL; unused
     }
 
     //add an assignment to the course
@@ -60,7 +59,7 @@ class Course {
 class Assignment {
     constructor(name, dueDate, submissionType,url) {
         this.name = name;
-        this.dueDate = dueDate;
+        this.dueDate = moment(dueDate);
         this.submissionType = submissionType;
         this.url = url;
     }
@@ -139,7 +138,7 @@ async function loadCourses(forcePull) {
         let courseCount = 0;
         for(let i = 0; i < fileData.Courses.length; i++) {
             if(!Settings.ignore.includes(String(fileData.Courses[i].id))){ //this is not working for some reason
-                Courses[courseCount] = new Course(fileData.Courses[i].name,fileData.Courses[i].id,fileData.Courses[i].icsURL);
+                Courses[courseCount] = new Course(fileData.Courses[i].name,fileData.Courses[i].id);
                 courseCount++;
             }
         }
@@ -164,7 +163,7 @@ async function loadCourses(forcePull) {
     //create a course object for each course
     for (let i = 0; i < data.length; i++) {
         if(data[i].calendar == null) continue; //skip courses that don't have an ics file
-        let course = new Course(data[i].name, data[i].id, data[i].calendar.ics);
+        let course = new Course(data[i].name, data[i].id);
         if(!Settings.ignore.includes(String(course.getId()))){
             Courses.push(course);
         }
@@ -325,19 +324,19 @@ async function handleClickUpFolders(requestOptions,spaceIndex){
 }
 
 async function createClickUpTask(assignment, listId){
-    if(!assignment.dueDate){ //invalid date in the canvas assignment
+    if(!assignment.dueDate.isValid()){ //invalid date in the canvas assignment
         return {body: {}, code: 100};
     }
     //date manipulation
     if(true){ 
         //if the due date is 11:59pm, we want to move it to 10:59pm
-        if(moment(assignment.dueDate).format("HH:mm") == "23:59") {
+        if(assignment.dueDate.format("HH:mm") == "23:59") {
             assignment.dueDate= moment(assignment.dueDate).subtract(1, 'h');
         }
 
         //if the due date is 12:00am, we want to move it to 10:59pm 
-        if(moment(assignment.dueDate).format("HH:mm") == "00:00") {
-            assignment.dueDate = moment(assignment.dueDate).subtract(1, 'h').add(1, 'd').subtract(1, 'm');
+        if(assignment.dueDate.format("HH:mm") == "00:00") {
+            assignment.dueDate = assignment.dueDate.subtract(1, 'h').add(1, 'd').subtract(1, 'm');
         }
     }
     let url = `https://api.clickup.com/api/v2/list/${listId}/task`;
@@ -351,7 +350,7 @@ async function createClickUpTask(assignment, listId){
         "assignees": [
             Number(Settings.clickUp.userId)
         ],
-        "due_date": moment(assignment.dueDate).local().format('x'),
+        "due_date": assignment.dueDate.local().format('x'),
         "due_date_time": true,
         "notify_all": false,
         "parent": null,
@@ -497,7 +496,7 @@ app.get("/api/getAssignments/:courseId", async(req, res) => {
 });
 
 //new endpoint for generating assignments, will use web socket to send progress updates
-app.ws('/ws/generate', function(ws, req) {
+app.ws('/ws/generate', function(ws) {
     let requestInfo = {};
     let requestProgress = 0;
     
@@ -592,7 +591,7 @@ app.ws('/ws/generate', function(ws, req) {
                         }
                     }
                     if(cutOffDate != undefined) {
-                        if(moment(assignments[i].dueDate).isAfter(cutOffDate)) {
+                        if(assignments[i].dueDate.isAfter(cutOffDate)) {
                             console.log("[GENERATION]".blue + " Skipping task ".white + String(assignments[i].name).blue + " because it is after the cutoff date".white);
                             ws.send(JSON.stringify({msgType: "taskEnd", success:false, assignmentName: assignments[i].name ,progress: requestProgress, code: 200, reason: "cutOffDate"}));
                             continue;
@@ -643,9 +642,8 @@ async function runTests(){
     let fileData = await fs.readFile(persistentFile, 'utf8')
     fileData = JSON.parse(fileData);
     Settings = fileData.Settings; //load settings from persistent file
-    //create dummy course [some random cs course]
 
-    let course = new Course("CS 1000", 1000, "https://canvas.colorado.edu/feeds/calendars/course_1234567890.ics");
+    let course = new Course("CS 1000", 1000);
     Courses.push(course);
 
     //create dummy assignments (one due at 11:59, one due at 12am, and one due at a random time - assignments should ALL be in mountain time)
@@ -654,7 +652,6 @@ async function runTests(){
     let assignment2 = new Assignment("Assignment 2", "2023-10-01T06:00:00Z", "online_upload", "https://canvas.colorado.edu/courses/1234567890/assignments/1234567890");
     let assignment3 = new Assignment("Assignment 3", "2023-10-01T22:45:00Z", "online_upload", "https://canvas.colorado.edu/courses/1234567890/assignments/1234567890");
 
-    console.log(assignment1)
     course.addAssignment(assignment1);
     course.addAssignment(assignment2);
     course.addAssignment(assignment3);

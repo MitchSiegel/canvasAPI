@@ -1,282 +1,366 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Canvas -> ClickUp</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@creativebulma/bulma-tooltip@1.2.0/dist/bulma-tooltip.min.css" integrity="sha256-OdzWB7wl1AMkFaqhYBnoQJGUJMDAexXa44rXs/d2n4A=" crossorigin="anonymous">
-  <link rel="stylesheet" href="https://www.jsdelivr.com/package/npm/@creativebulma/bulma-tagsinput/dist/css/bulma-tagsinput.min.css" />
+  <link rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/@creativebulma/bulma-tooltip@1.2.0/dist/bulma-tooltip.min.css"
+    integrity="sha256-OdzWB7wl1AMkFaqhYBnoQJGUJMDAexXa44rXs/d2n4A=" crossorigin="anonymous">
+  <link rel="stylesheet"
+    href="https://www.jsdelivr.com/package/npm/@creativebulma/bulma-tagsinput/dist/css/bulma-tagsinput.min.css" />
   <link rel="stylesheet" href="/index.css">
   <script src="https://kit.fontawesome.com/943ab53432.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@creativebulma/bulma-tagsinput@1.0.3/dist/js/bulma-tagsinput.min.js"></script>
+  <script
+    src="https://cdn.jsdelivr.net/npm/@creativebulma/bulma-tagsinput@1.0.3/dist/js/bulma-tagsinput.min.js"></script>
 </head>
+
 <body>
-    <div class="settings-icon">
-          <i class="fas fa-cog"></i>
-        </a>
-      </div>
-      
-    <header>
-        <div class="container has-text-centered">
-            <h1 class="title">Class List</h1>
-        </div>
-    </header>
+  <div class="settings-icon">
+    <i class="fas fa-cog"></i>
+    </a>
+  </div>
+  <div class="add-icon">
+    <i class="fas fa-circle-plus"></i>
+    </a>
+  </div>
+
+  <header>
+    <div class="container has-text-centered">
+      <h1 class="title">Class List</h1>
+    </div>
+  </header>
   <section class="section">
     <div class="container">
-      <% Courses.forEach(element => { %>
-      <div class="item-container">
-        <div class="item-title">
-          <%= element.name %>
-        </div>
-        <div class="button-container">
-            <button class="button is-primary" data-param="<%= element.id %>">Generate</button>         
+      <% Courses.forEach(element=> { %>
+        <div class="item-container">
+          <div class="item-title">
+            <%= element.name %>
+          </div>
+          <div class="button-container">
+            <button class="button is-primary" data-param="<%= element.id %>">Generate</button>
             <button class="button is-danger" onclick='hideCourse("<%= element.id %>")'>Hide</button>
+          </div>
         </div>
-      </div>
-      <% }) %>
-  
-      <!-- generate modal -->
-      <div class="modal" id="myModal">
-        <div class="modal-background"></div>
-        <div class="modal-card">
-          <header class="modal-card-head">
-            <p class="modal-card-title">Generate</p>
-            <button class="delete" aria-label="close"></button>
-          </header>
-          <section class="modal-card-body">
-            <div class="notification is-dark">
-              <div class="has-text-centered" id="preLoad">Loading assignments...</div>
-              <div class="loader-container">
-                <div id="load" class="loader" style="display:inline-block;"></div>
-                <div id="postLoad"></div>
-              </div>
-            </div>
-            <div class="field">
-              <label class="label">Select ClickUp List</label>
-              <div class="control">
-                <div class="select is-fullwidth">
-                  <select id="clickUpList">
-                    <% if (clickUp.defaultSpaceId) { %>
-                      <% clickUp.spaces.forEach(element => { %>
-                        <% if(element.id == clickUp.defaultSpaceId) { %>
-                          <% element.lists.forEach(list => { %>
-                            <option value="<%= list.id %>"><%= list.name %></option>
-                          <% }) %>
-                      <% }}) %>
-                    <% } %>
-                  </select>
-                </div>
-              </div>
-            </div>
-            <div class="field">
-              <label class="label">
-                Cutoff Date
-                <span class="icon is-small has-tooltip-arrow has-tooltip-right" data-tooltip="Assignments due after this date will not be added.">
-                  <i class="fad fa-question-circle"></i>
-                </span>
-              </label>
-              <div class="control">
-                <input class="input" type="date" id="cutoffDate">
-              </div>
-            </div>
-            <div class="field">
-              <label class="label">
-                Ignore Tags
-                <span class="icon is-small has-tooltip-arrow has-tooltip-right" data-tooltip="Assignments' name that have tags within them will be ignored.">
-                  <i class="fad fa-question-circle"></i>
-                </span>
-              </label>
-              <div class="control">
-                <input class="input" type="text" data-type="tags" placeholder="Choose Tags" id="ignore-tags">
-              </div>
-            </div>
-            <div class="center-container">
-            <div class="field is-horizontal">
-              <div class="field-label is-normal">
-                <label class="label" for="ignoreDuplicates">Ignore duplicates</label>
-              </div>
-              <div class="field-body">
-                <div class="field">
-                  <div class="control">
-                    <label class="switch">
-                      <input type="checkbox" id="ignoreDuplicates" checked>
-                      <span class="slider round"></span>
-                    </label>
+        <% }) %>
+
+          <!-- generate modal -->
+          <div class="modal" id="myModal">
+            <div class="modal-background"></div>
+            <div class="modal-card">
+              <header class="modal-card-head">
+                <p class="modal-card-title">Generate</p>
+                <button class="delete" aria-label="close"></button>
+              </header>
+              <section class="modal-card-body">
+                <div class="notification is-dark">
+                  <div class="has-text-centered" id="preLoad">Loading assignments...</div>
+                  <div class="loader-container">
+                    <div id="load" class="loader" style="display:inline-block;"></div>
+                    <div id="postLoad"></div>
                   </div>
                 </div>
+                <div class="field">
+                  <label class="label">Select ClickUp List</label>
+                  <div class="control">
+                    <div class="select is-fullwidth">
+                      <select id="clickUpList">
+                        <% if (clickUp.defaultSpaceId) { %>
+                          <% clickUp.spaces.forEach(element=> { %>
+                            <% if(element.id==clickUp.defaultSpaceId) { %>
+                              <% element.lists.forEach(list=> { %>
+                                <option value="<%= list.id %>">
+                                  <%= list.name %>
+                                </option>
+                                <% }) %>
+                                  <% }}) %>
+                                    <% } %>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                <div class="field">
+                  <label class="label">
+                    Cutoff Date
+                    <span class="icon is-small has-tooltip-arrow has-tooltip-right"
+                      data-tooltip="Assignments due after this date will not be added.">
+                      <i class="fad fa-question-circle"></i>
+                    </span>
+                  </label>
+                  <div class="control">
+                    <input class="input" type="date" id="cutoffDate">
+                  </div>
+                </div>
+                <div class="field">
+                  <label class="label">
+                    Ignore Tags
+                    <span class="icon is-small has-tooltip-arrow has-tooltip-right"
+                      data-tooltip="Assignments' name that have tags within them will be ignored.">
+                      <i class="fad fa-question-circle"></i>
+                    </span>
+                  </label>
+                  <div class="control">
+                    <input class="input" type="text" data-type="tags" placeholder="Choose Tags" id="ignore-tags">
+                  </div>
+                </div>
+                <div class="center-container">
+                  <div class="field is-horizontal">
+                    <div class="field-label is-normal">
+                      <label class="label" for="ignoreDuplicates">Ignore duplicates</label>
+                    </div>
+                    <div class="field-body">
+                      <div class="field">
+                        <div class="control">
+                          <label class="switch">
+                            <input type="checkbox" id="ignoreDuplicates" checked>
+                            <span class="slider round"></span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </section>
+              <footer class="modal-card-foot">
+                <button class="button is-info is-centered" id="generate" disabled
+                  onclick="generateTwo()">Submit</button>
+              </footer>
+            </div>
+          </div>
+
+          <!-- during generation modal -->
+          <div class="modal" id="taskModal">
+            <div class="modal-background"></div>
+            <div class="modal-card">
+              <header class="modal-card-head">
+                <p class="modal-card-title">Generation Status</p>
+                <button class="delete" aria-label="close"></button>
+              </header>
+
+              <section class="modal-card-body">
+                <progress class="progress custom-colors is-hidden" value="15" max="100">15%</progress>
+                <div class="content">
+                  <ul id="taskList">
+
+                  </ul>
+                </div>
+              </section>
+            </div>
+          </div>
+
+          <!-- settings modal -->
+          <div class="modal" id="settingsModal">
+            <div class="modal-background"></div>
+            <div class="modal-card">
+              <header class="modal-card-head">
+                <p class="modal-card-title">Settings</p>
+                <button class="delete" aria-label="close"></button>
+              </header>
+              <section class="modal-card-body">
+                <div class="field">
+                  <label class="label">ClickUp API Key</label>
+                  <div class="control">
+                    <input class="input" type="text" id="clickup" placeholder="Enter your ClickUp API key"
+                      value="<%= clickUpKey %>">
+                  </div>
+                </div>
+                <div class="field">
+                  <label class="label">Canvas Key</label>
+                  <div class="control">
+                    <input class="input" type="text" id="canvas" placeholder="Enter your ClickUp API key"
+                      value="<%= canvasKey %>">
+                  </div>
+                </div>
+                <div class="field">
+                  <label class="label">Default ClickUp Space</label>
+                  <div class="control">
+                    <div class="select is-fullwidth">
+                      <select id="defaultClickUpSpace">
+                        <% if (clickUp.spaces.length <=0) { %>
+                          <!-- This option will show if there is no spaces or clickup auth -->
+                          <option hidden selected>Please enter clickup key and update lists first.</option>
+                          <% }else if(clickUp.defaultSpaceId=="" ){ %>
+                            <!-- this option will show if they are authenticated but haven't chosen a default list yet -->
+                            <option hidden selected>Please select default list</option>
+                            <% for (var key in clickUp.spaces) { %>
+                              <option value="<%= clickUp.spaces[key].id %>">
+                                <%= clickUp.spaces[key].name %>
+                              </option>
+                              <% } %>
+                                <% }else{ %>
+                                  <!-- this option will show if they are authenticated and have a default list -->
+                                  <% for (var key in clickUp.spaces) { %>
+                                    <% if(clickUp.spaces[key].id==clickUp.defaultSpaceId){ %>
+                                      <option value="<%= clickUp.spaces[key].id %>" selected>
+                                        <%= clickUp.spaces[key].name %>
+                                      </option>
+                                      <% continue;} %>
+                                        <option value="<%= clickUp.spaces[key].id %>">
+                                          <%= clickUp.spaces[key].name %>
+                                        </option>
+                                        <% } %>
+                                          <% } %>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="field is-grouped" style="justify-content: center;">
+                  <div class="control">
+                    <button class="button is-info" id="updateButton" onclick="forceClickUp()">
+                      <span class="icon">
+                        <i class="fas fa-sync-alt"></i>
+                      </span>
+                      <span>Update ClickUp</span>
+                    </button>
+                  </div>
+                  <div class="control">
+                    <button class="button is-info" onclick="hideCourse(-1)">
+                      <span class="icon">
+                        <i class="fas fa-eye"></i>
+                      </span>
+                      <span>Show all classes</span>
+                    </button>
+                  </div>
+                </div>
+              </section>
+              <footer class="modal-card-foot">
+                <button class="button is-custom is-centered" onclick="saveSettings()">Save</button>
+              </footer>
+            </div>
+          </div>
+
+          <!-- single clickup task add on -->
+          <div class="modal" id="newTaskModal">
+            <div class="modal-background"></div>
+            <div class="modal-content">
+              <!-- the new content starts here -->
+              <div class="modal-card">
+                <header class="modal-card-head">
+                  <p class="modal-card-title">Add single task</p>
+                  <button class="delete" aria-label="close"></button>
+                </header>
+
+                <section class="modal-card-body">
+                  <div class="item-centered">
+                    <label for="taskN">Task</label>
+                    <input class="input" type="text" id="taskN">
+                  </div>
+                  <div class="item-centered">
+                    <label for="description">Task Description</label>
+                    <input class="input" type="text" id="description" value=" ">
+                  </div>
+                  <label for="taskClass">List</label>
+                  <div class="select is-fullwidth">
+                    <select id="newTaskList">
+                      <% if (clickUp.defaultSpaceId) { %>
+                        <% clickUp.spaces.forEach(element=> { %>
+                          <% if(element.id==clickUp.defaultSpaceId) { %>
+                            <% element.lists.forEach(list=> { %>
+                              <option value="<%= list.id %>">
+                                <%= list.name %>
+                              </option>
+                              <% }) %>
+                                <% }}) %>
+                                  <% } %>
+                    </select>
+                  </div>
+                  <div class="item-centered">
+                    <label for="date">Task Due Date</label>
+                    <input type="date" id="date">
+                  </div>
+                </section>
+
+                <section class="modal-card-foot">
+                  <button class="button is-custom is-centered" onclick="addSingleTask()">Add Task (not working right now)</button>
+                </section>
+                <!-- the new content ends here -->
               </div>
             </div>
           </div>
-            
-          </section>
-          <footer class="modal-card-foot">
-            <button class="button is-info is-centered" id="generate" disabled onclick="generateTwo()">Submit</button>
-          </footer>
-        </div>
-      </div>   
-      
-      <!-- during generation modal -->
-      <div class="modal" id="taskModal">
-        <div class="modal-background"></div>
-        <div class="modal-card">
-          <header class="modal-card-head">
-            <p class="modal-card-title">Generation Status</p>
-            <button class="delete" aria-label="close"></button>
-          </header>
-          
-          <section class="modal-card-body">
-            <progress class="progress custom-colors is-hidden" value="15" max="100">15%</progress>
-            <div class="content">
-              <ul id="taskList">
 
-              </ul>
-            </div>
-          </section>
-        </div>
-      </div>
-      
-      <!-- settings modal -->
-      <div class="modal" id="settingsModal">
-        <div class="modal-background"></div>
-        <div class="modal-card">
-          <header class="modal-card-head">
-            <p class="modal-card-title">Settings</p>
-            <button class="delete" aria-label="close"></button>
-          </header>
-          <section class="modal-card-body">
-            <div class="field">
-              <label class="label">ClickUp API Key</label>
-              <div class="control">
-                <input class="input" type="text" id="clickup" placeholder="Enter your ClickUp API key" value="<%= clickUpKey %>">
-              </div>
-            </div>
-            <div class="field">
-              <label class="label">Canvas Key</label>
-              <div class="control">
-                <input class="input" type="text" id="canvas" placeholder="Enter your ClickUp API key" value="<%= canvasKey %>">
-              </div>
-            </div>
-            <div class="field">
-              <label class="label">Default ClickUp Space</label>
-              <div class="control">
-                <div class="select is-fullwidth">
-                  <select id="defaultClickUpSpace">
-                    <% if (clickUp.spaces.length <= 0) { %>
-                      <!-- This option will show if there is no spaces or clickup auth -->
-                      <option hidden selected>Please enter clickup key and update lists first.</option>
-                    <% }else if(clickUp.defaultSpaceId == ""){ %>
-                      <!-- this option will show if they are authenticated but haven't chosen a default list yet -->  
-                      <option hidden selected>Please select default list</option>
-                      <% for (var key in clickUp.spaces) { %>
-                        <option value="<%= clickUp.spaces[key].id %>"><%= clickUp.spaces[key].name %></option>
-                      <% } %>
-                    <% }else{ %>  
-                      <!-- this option will show if they are authenticated and have a default list -->
-                      <% for (var key in clickUp.spaces) { %>
-                        <% if(clickUp.spaces[key].id == clickUp.defaultSpaceId){ %>
-                          <option value="<%= clickUp.spaces[key].id %>" selected><%= clickUp.spaces[key].name %></option>
-                        <% continue;} %>
-                        <option value="<%= clickUp.spaces[key].id %>" ><%= clickUp.spaces[key].name %></option>
-                      <% } %>
-                    <% } %>
-                  </select>
-                </div>
-              </div>
-            </div>
-      
-            <div class="field is-grouped" style="justify-content: center;">
-                <div class="control">
-                  <button class="button is-info" id="updateButton" onclick="forceClickUp()">
-                    <span class="icon">
-                      <i class="fas fa-sync-alt"></i>
-                    </span>
-                    <span>Update ClickUp</span>
-                  </button>
-                </div>
-                <div class="control">
-                  <button class="button is-info" onclick="hideCourse(-1)">
-                    <span class="icon">
-                      <i class="fas fa-eye"></i>
-                    </span>
-                    <span>Show all classes</span>
-                  </button>
-                </div>
-              </div>
-          </section>
-          <footer class="modal-card-foot">
-            <button class="button is-custom is-centered" onclick="saveSettings()">Save</button>
-          </footer>
-        </div>
-      </div>
-      
+
     </div>
   </section>
 </body>
 <script>
-    let currentParam;
-    const progressBar = document.querySelector('.progress');
-    const ignoreTags = document.getElementById('ignore-tags');
-    let isLoading = false;
-    document.addEventListener('DOMContentLoaded', () => {
-      const settingsModal = document.getElementById('settingsModal');
-      const settingsIcon = document.querySelector('.settings-icon');
-      const settingsCloseButton = settingsModal.querySelector('.delete');
-      const taskList = document.getElementById('taskList');
-      const myModal = document.getElementById('myModal');
-      const taskModal = document.getElementById('taskModal');
-      const generateButtons = document.querySelectorAll('.button.is-primary');
-      const myModalCloseButton = myModal.querySelector('.delete');
-      const preLoad = document.getElementById('preLoad');
-      const load = document.getElementById('load');
-      const postLoad = document.getElementById('postLoad');
-      const submitButton = document.getElementById('generate');
-      const clickUpList = document.getElementById('clickUpList');
-      const ignoreDuplicates = document.getElementById('ignoreDuplicates');
+  let currentParam;
+  const progressBar = document.querySelector('.progress'), ignoreTags = document.getElementById('ignore-tags'), ignoreDuplicates = document.getElementById('ignoreDuplicates');
+  let isLoading = false;
+  document.addEventListener('DOMContentLoaded', () => {
+    //settings modal
+    const settingsModal = document.getElementById('settingsModal'), settingsIcon = document.querySelector('.settings-icon'), settingsCloseButton = settingsModal.querySelector('.delete');
+    //more modals
+    const myModal = document.getElementById('myModal'), taskModal = document.getElementById('taskModal'), myModalCloseButton = myModal.querySelector('.delete');
+    //loading stuff
+    const preLoad = document.getElementById('preLoad'), load = document.getElementById('load'), postLoad = document.getElementById('postLoad');
+    //new task modal
+    const newTaskModal = document.getElementById('newTaskModal'), addIcon = document.querySelector('.add-icon'), newTaskCloseButton = newTaskModal.querySelector('.delete');
+    //other stuff
+    const taskList = document.getElementById('taskList');
+    const generateButtons = document.querySelectorAll('.button.is-primary');
+    const submitButton = document.getElementById('generate');
+    const clickUpList = document.getElementById('clickUpList');
+
+    let cutoffDate = document.querySelector('#cutoffDate');
+    let today = new Date().toISOString().split('T')[0];
+    cutoffDate.setAttribute("min", today);
+    new BulmaTagsInput(ignoreTags);
 
 
-      let cutoffDate = document.querySelector('#cutoffDate');
-      let today = new Date().toISOString().split('T')[0];
-      cutoffDate.setAttribute("min",today);
-      new BulmaTagsInput(ignoreTags);
-      settingsIcon.addEventListener('click', () => {
-        settingsModal.classList.add('is-active');
-      });
-  
-      settingsCloseButton.addEventListener('click', () => {
-        settingsModal.classList.remove('is-active');
-      });
+    settingsIcon.addEventListener('click', () => {
+      settingsModal.classList.add('is-active');
+    });
 
-      taskModal.querySelector('.delete').addEventListener('click', () => {
-        taskModal.classList.remove('is-active');
-      });
+    addIcon.addEventListener('click', () => {
+      newTaskModal.classList.add('is-active');
+    });
 
-      taskModal.querySelector('.modal-background').addEventListener('click', () => {
-        taskModal.classList.remove('is-active');
-      });
-  
-      settingsModal.querySelector('.modal-background').addEventListener('click', () => {
-        settingsModal.classList.remove('is-active');
-      });
-  
-      generateButtons.forEach(button => {
-        
-        button.addEventListener('click', async(event) => {
-            currentParam = event.currentTarget.dataset.param;
-            myModal.classList.add('is-active');
-            isLoading = true;
-            
-            const res = await fetch('/api/getAssignments/' + currentParam);
-          
-            const data = await res.json();
-            preLoad.classList.add('is-hidden');
-            load.classList.add('is-hidden');
-            submitButton.disabled = false;
-            postLoad.innerHTML = `${data.courseName} has ${data.assignments.length} future assignments.`;
-            //load in the tasks into the modal
-            taskList.innerHTML = '';
-            data.assignments.forEach(assignment => {
-              const task = `
-                  <li class="task-container not-active" id="task-${assignment.name.replace(/ /g,'-')}">
+    settingsCloseButton.addEventListener('click', () => {
+      settingsModal.classList.remove('is-active');
+    });
+
+    newTaskCloseButton.addEventListener('click', () => {
+      newTaskModal.classList.remove('is-active');
+    });
+
+    taskModal.querySelector('.delete').addEventListener('click', () => {
+      taskModal.classList.remove('is-active');
+    });
+
+    taskModal.querySelector('.modal-background').addEventListener('click', () => {
+      taskModal.classList.remove('is-active');
+    });
+
+    settingsModal.querySelector('.modal-background').addEventListener('click', () => {
+      settingsModal.classList.remove('is-active');
+    });
+
+    newTaskModal.querySelector('.modal-background').addEventListener('click', () => {
+      newTaskModal.classList.remove('is-active');
+    });
+
+    generateButtons.forEach(button => {
+
+      button.addEventListener('click', async (event) => {
+        currentParam = event.currentTarget.dataset.param;
+        myModal.classList.add('is-active');
+        isLoading = true;
+
+        const res = await fetch('/api/getAssignments/' + currentParam);
+
+        const data = await res.json();
+        preLoad.classList.add('is-hidden');
+        load.classList.add('is-hidden');
+        submitButton.disabled = false;
+        postLoad.innerHTML = `${data.courseName} has ${data.assignments.length} future assignments.`;
+        //load in the tasks into the modal
+        taskList.innerHTML = '';
+        data.assignments.forEach(assignment => {
+          const task = `
+                  <li class="task-container not-active" id="task-${assignment.name.replace(/ /g, '-')}">
                     <div class="task-title">
                       ${assignment.name}
                     </div>
@@ -287,181 +371,181 @@
                     </div>
                   </li>
                 `
-              taskList.innerHTML += task;
-              progressBar.value = 0;
-              isLoading = false;
-            });
+          taskList.innerHTML += task;
+          progressBar.value = 0;
+          isLoading = false;
         });
+      });
     });
 
-  
-      myModalCloseButton.addEventListener('click', () => {
-        //not the most elegant solution but it works, if the user tries to close the modal while the assignments are loading, it will alert them
-        if(isLoading){
-          alert("Please wait for the assignments to load before closing the modal.")
-          return;
-        }
-        myModal.classList.remove('is-active');
-        preLoad.classList.remove('is-hidden');
-        load.classList.remove('is-hidden');
-        postLoad.innerHTML = '';
-        submitButton.disabled = true;
-      });
-  
-      myModal.querySelector('.modal-background').addEventListener('click', () => {
-        if(isLoading){
-          alert("Please wait for the assignments to load before closing the modal.")
-          return;
-        }
-        myModal.classList.remove('is-active');
-        preLoad.classList.remove('is-hidden');
-        load.classList.remove('is-hidden');
-        postLoad.innerHTML = '';
-        submitButton.disabled = true;
-      });
+
+    myModalCloseButton.addEventListener('click', () => {
+      //not the most elegant solution but it works, if the user tries to close the modal while the assignments are loading, it will alert them
+      if (isLoading) {
+        alert("Please wait for the assignments to load before closing the modal.")
+        return;
+      }
+      myModal.classList.remove('is-active');
+      preLoad.classList.remove('is-hidden');
+      load.classList.remove('is-hidden');
+      postLoad.innerHTML = '';
+      submitButton.disabled = true;
     });
-    function hideCourse(id) {
-        fetch('/api/hide/' + id, {
-            method: 'GET',
-        }).then(res => {
-            if (res.ok) {
-                console.log('Course hidden');
-                window.location.reload();
-            }
-        })
-    }
-    function forceClickUp(){
-        fetch('/forceClickUpPull', {
-            method: 'GET',
-        }).then(res => {
-            if (res.ok) {
-                console.log('ClickUp updated');
-                window.location.reload();
-            }
-        })
-    }
-    function saveSettings(){
-        let canvasKey = document.querySelector('#canvas').value;
-        let clickUpKey = document.querySelector('#clickup').value;
-        let defaultClickUpSpace = document.querySelector('#defaultClickUpSpace').value;
-        if(canvasKey != "" && canvasKey != canvasKeySaved){
-            fetch('/api/saveKey/canvas/' + canvasKey, {
-                method: 'GET',
-            }).then(res => {
-                if (res.ok) {
-                    console.log('Canvas key saved');
-                    settingsModal.classList.remove('is-active');
-                }
-            })
+
+    myModal.querySelector('.modal-background').addEventListener('click', () => {
+      if (isLoading) {
+        alert("Please wait for the assignments to load before closing the modal.")
+        return;
+      }
+      myModal.classList.remove('is-active');
+      preLoad.classList.remove('is-hidden');
+      load.classList.remove('is-hidden');
+      postLoad.innerHTML = '';
+      submitButton.disabled = true;
+    });
+  });
+  function hideCourse(id) {
+    fetch('/api/hide/' + id, {
+      method: 'GET',
+    }).then(res => {
+      if (res.ok) {
+        console.log('Course hidden');
+        window.location.reload();
+      }
+    })
+  }
+  function forceClickUp() {
+    fetch('/forceClickUpPull', {
+      method: 'GET',
+    }).then(res => {
+      if (res.ok) {
+        console.log('ClickUp updated');
+        window.location.reload();
+      }
+    })
+  }
+  function saveSettings() {
+    let canvasKey = document.querySelector('#canvas').value;
+    let clickUpKey = document.querySelector('#clickup').value;
+    let defaultClickUpSpace = document.querySelector('#defaultClickUpSpace').value;
+    if (canvasKey != "" && canvasKey != canvasKeySaved) {
+      fetch('/api/saveKey/canvas/' + canvasKey, {
+        method: 'GET',
+      }).then(res => {
+        if (res.ok) {
+          console.log('Canvas key saved');
+          settingsModal.classList.remove('is-active');
         }
-        if(clickUpKey != "" && clickUpKey != clickUpKeySaved){
-            fetch('/api/saveKey/clickup/' + clickUpKey, {
-                method: 'GET',
-            }).then(res => {
-                if (res.ok) {
-                    console.log('ClickUp key saved');
-                    settingsModal.classList.remove('is-active');
-                }
-            })
-        }
-        if(defaultClickUpSpace != "" && defaultClickUpSpace != defaultClickUpSpaceSaved){
-            fetch('/api/saveKey/defaultClickUpSpace/' + defaultClickUpSpace, {
-                method: 'GET',
-            }).then(res => {
-                if (res.ok) {
-                    console.log('Default ClickUp Space saved');
-                    window.location.reload();
-                }
-            })
-        }
-        settingsModal.classList.remove('is-active');
+      })
     }
-    //new generate function, uses websockets
-    async function generateTwo(){
-        let cutOff = (cutoffDate.value == "") ? "none" : cutoffDate.value;
-        let tags = ignoreTags.value;
-        //because I was annoyed by the fact that if I forget to click to enter to add a tag it doesn't, im going to get the value of the input and add it to the tags
-        let tagInputRaw = document.querySelector('.tags-input').querySelectorAll('input')[0].value;
-        if(tagInputRaw != ""){
-          tagsArray = tags.split(',');
-          if(tags == ""){
-            tags += tagInputRaw;
-          }else if(tags != ""){
-            if(!tagsArray.includes(tagInputRaw)){
-              tags += "," + document.querySelector('.tags-input').querySelectorAll('input')[0].value;
-            }
-          }
+    if (clickUpKey != "" && clickUpKey != clickUpKeySaved) {
+      fetch('/api/saveKey/clickup/' + clickUpKey, {
+        method: 'GET',
+      }).then(res => {
+        if (res.ok) {
+          console.log('ClickUp key saved');
+          settingsModal.classList.remove('is-active');
         }
-        //sanitize the tags, and remove all < or <, ' or ', and " or `
-        tags = tags.replace(/[<>/\'\"\`]/g, ' ');
-        const websocket = new WebSocket('ws://localhost:<%= port %>/ws/generate');
-        //wait for the websocket to open
-        await new Promise(resolve => websocket.onopen = resolve);
-        console.log(ignoreDuplicates.checked)
-        websocket.send(JSON.stringify({
-            msgType: "generateData",
-            clickUpList: clickUpList.value,
-            ignoreDuplicates: ignoreDuplicates.checked,
-            courseId: currentParam,
-            cutOffDate: cutOff,
-            ignoreTags: tags
-        }));
-        taskModal.classList.add('is-active');
-        //event listener for when the websocket sends a message
-        websocket.onmessage = function (event) {
-            console.log(event.data);
-            let data = JSON.parse(event.data);
-            console.log(data);
-          if(data.msgType == "taskStart"){
-            const element = document.getElementById(`task-${data.assignmentName.replace(/ /g,'-')}`);
-            const elementIcon = element.querySelector('i');
-            element.classList.remove('not-active');
-            element.classList.add('active'); 
-            elementIcon.classList.remove('fa-pause');
-            elementIcon.classList.add('fa-spinner');
-            elementIcon.classList.add('fa-spin');
-          };
-          if(data.msgType == "taskEnd"){
-            const element = document.getElementById(`task-${data.assignmentName.replace(/ /g,'-')}`);
-            const elementIcon = element.querySelector('i');
-            element.classList.remove('active');
-            elementIcon.classList.remove('fa-spinner');
-            elementIcon.classList.remove('fa-spin');
-            if(data.success){
-                element.classList.add('added'); 
-                elementIcon.classList.add('fa-check');
-            }else if(data.reason == "duplicate" || data.reason == "cutOffDate" || data.reason == "ignoreTag"){
-                element.classList.add('ignored');
-                elementIcon.classList.add('fa-forward');
-            }else if(data.reason == "invalidDate"){
-                element.classList.add('skipped');
-                elementIcon.classList.add('fa-calendar-circle-exclamation');
-            }else if(data.reason == "unknown"){
-                element.classList.add('failed');
-                elementIcon.classList.add('fa-question-circle');
-            }
-            progressBar.setAttribute('value', data.progress);
-          };
-          if(data.msgType == "done"){
-            progressBar.setAttribute('value', 100);
-          };
-          if(cutOff != "none"){
-            cutOffDate.value = ""; //reset the cutoff date
-          }
+      })
+    }
+    if (defaultClickUpSpace != "" && defaultClickUpSpace != defaultClickUpSpaceSaved) {
+      fetch('/api/saveKey/defaultClickUpSpace/' + defaultClickUpSpace, {
+        method: 'GET',
+      }).then(res => {
+        if (res.ok) {
+          console.log('Default ClickUp Space saved');
+          window.location.reload();
         }
+      })
     }
-    
-    let canvasKeySaved = "<%= canvasKey %>";
-    let clickUpKeySaved = "<%= clickUpKey %>";
-    let defaultClickUpSpaceSaved = "<%= clickUp.defaultSpaceId %>";
-    if(canvasKeySaved == "" || clickUpKeySaved == "") {
-        alert("Please enter your Canvas and ClickUp API keys in the settings page.");
+    settingsModal.classList.remove('is-active');
+  }
+  //new generate function, uses websockets
+  async function generateTwo() {
+    let cutOff = (cutoffDate.value == "") ? "none" : cutoffDate.value;
+    let tags = ignoreTags.value;
+    //because I was annoyed by the fact that if I forget to click to enter to add a tag it doesn't, im going to get the value of the input and add it to the tags
+    let tagInputRaw = document.querySelector('.tags-input').querySelectorAll('input')[0].value;
+    if (tagInputRaw != "") {
+      tagsArray = tags.split(',');
+      if (tags == "") {
+        tags += tagInputRaw;
+      } else if (tags != "") {
+        if (!tagsArray.includes(tagInputRaw)) {
+          tags += "," + document.querySelector('.tags-input').querySelectorAll('input')[0].value;
+        }
+      }
     }
-    let clickUp = {
-        //yes I know this shows up as an error, but it works, and it should not be changed
-        spaces: <%-JSON.stringify(clickUp)%>
+    //sanitize the tags, and remove all < or <, ' or ', and " or `
+    tags = tags.replace(/[<>/\'\"\`]/g, ' ');
+    const websocket = new WebSocket('ws://localhost:<%= port %>/ws/generate');
+    //wait for the websocket to open
+    await new Promise(resolve => websocket.onopen = resolve);
+    console.log(ignoreDuplicates.checked)
+    websocket.send(JSON.stringify({
+      msgType: "generateData",
+      clickUpList: clickUpList.value,
+      ignoreDuplicates: ignoreDuplicates.checked,
+      courseId: currentParam,
+      cutOffDate: cutOff,
+      ignoreTags: tags
+    }));
+    taskModal.classList.add('is-active');
+    //event listener for when the websocket sends a message
+    websocket.onmessage = function (event) {
+      console.log(event.data);
+      let data = JSON.parse(event.data);
+      console.log(data);
+      if (data.msgType == "taskStart") {
+        const element = document.getElementById(`task-${data.assignmentName.replace(/ /g, '-')}`);
+        const elementIcon = element.querySelector('i');
+        element.classList.remove('not-active');
+        element.classList.add('active');
+        elementIcon.classList.remove('fa-pause');
+        elementIcon.classList.add('fa-spinner');
+        elementIcon.classList.add('fa-spin');
+      };
+      if (data.msgType == "taskEnd") {
+        const element = document.getElementById(`task-${data.assignmentName.replace(/ /g, '-')}`);
+        const elementIcon = element.querySelector('i');
+        element.classList.remove('active');
+        elementIcon.classList.remove('fa-spinner');
+        elementIcon.classList.remove('fa-spin');
+        if (data.success) {
+          element.classList.add('added');
+          elementIcon.classList.add('fa-check');
+        } else if (data.reason == "duplicate" || data.reason == "cutOffDate" || data.reason == "ignoreTag") {
+          element.classList.add('ignored');
+          elementIcon.classList.add('fa-forward');
+        } else if (data.reason == "invalidDate") {
+          element.classList.add('skipped');
+          elementIcon.classList.add('fa-calendar-circle-exclamation');
+        } else if (data.reason == "unknown") {
+          element.classList.add('failed');
+          elementIcon.classList.add('fa-question-circle');
+        }
+        progressBar.setAttribute('value', data.progress);
+      };
+      if (data.msgType == "done") {
+        progressBar.setAttribute('value', 100);
+      };
+      if (cutOff != "none") {
+        cutOffDate.value = ""; //reset the cutoff date
+      }
     }
-  </script>
-  
-  
+  }
+
+  let canvasKeySaved = "<%= canvasKey %>";
+  let clickUpKeySaved = "<%= clickUpKey %>";
+  let defaultClickUpSpaceSaved = "<%= clickUp.defaultSpaceId %>";
+  if (canvasKeySaved == "" || clickUpKeySaved == "") {
+    alert("Please enter your Canvas and ClickUp API keys in the settings page.");
+  }
+  let clickUp = {
+    //yes I know this shows up as an error, but it works, and it should not be changed
+    spaces: <%-JSON.stringify(clickUp) %>
+  }
+</script>
+
+
 </html>
