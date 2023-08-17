@@ -245,14 +245,14 @@
 
                 <section class="modal-card-body">
                   <div class="item-centered">
-                    <label for="taskN">Task</label>
+                    <label for="taskN">Task Name</label>
                     <input class="input" type="text" id="taskN">
                   </div>
                   <div class="item-centered">
-                    <label for="description">Task Description</label>
+                    <label for="description">Task description</label>
                     <input class="input" type="text" id="description" value=" ">
                   </div>
-                  <label for="taskClass">List</label>
+                  <label for="taskClass">ClickUp list</label>
                   <div class="select is-fullwidth">
                     <select id="newTaskList">
                       <% if (clickUp.defaultSpaceId) { %>
@@ -274,7 +274,7 @@
                 </section>
 
                 <section class="modal-card-foot">
-                  <button class="button is-custom is-centered" onclick="addSingleTask()">Add Task (not working right now)</button>
+                  <button class="button is-custom is-centered" onclick="addSingleTask()">Add Task</button>
                 </section>
                 <!-- the new content ends here -->
               </div>
@@ -284,6 +284,24 @@
 
     </div>
   </section>
+  <!-- deferred scripts -->
+  <script defer>
+    document.addEventListener("DOMContentLoaded", function() {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        let mm = today.getMonth() + 1; // January is 0
+        let dd = today.getDate();
+    
+        // Ensure double digits
+        mm = (mm < 10) ? '0' + mm : mm;
+        dd = (dd < 10) ? '0' + dd : dd;
+    
+        const formattedDate = yyyy + '-' + mm + '-' + dd;
+    
+        document.getElementById('date').setAttribute('min', formattedDate);
+    });
+    </script>
+
 </body>
 <script>
   let currentParam;
@@ -481,7 +499,6 @@
     const websocket = new WebSocket('ws://localhost:<%= port %>/ws/generate');
     //wait for the websocket to open
     await new Promise(resolve => websocket.onopen = resolve);
-    console.log(ignoreDuplicates.checked)
     websocket.send(JSON.stringify({
       msgType: "generateData",
       clickUpList: clickUpList.value,
@@ -534,7 +551,41 @@
       }
     }
   }
+  //add single task function
+  async function addSingleTask() {
+    const websocket = new WebSocket('ws://localhost:<%= port %>/ws/addSingleTask');
+    //get all the values
 
+    let taskName = document.querySelector('#taskN').value;
+    let taskDescription = document.querySelector('#description').value;
+    let taskList = document.querySelector('#newTaskList').value;
+    let taskDate = document.querySelector('#date').value;
+
+    
+    if(taskName=="" || taskList=="" || taskDate==""){
+      alert("Please fill out all fields");
+      return;
+    }
+
+    await new Promise(resolve => websocket.onopen = resolve);
+    websocket.send(JSON.stringify({
+      clickUpList: taskList,
+      taskName: taskName,
+      taskDescription: taskDescription,
+      taskDate: taskDate
+    }));
+
+    //handle the response
+    websocket.onmessage = function (event) {
+      let data = JSON.parse(event.data);
+      if(data.status == "Task created"){
+        newTaskModal.classList.remove('is-active');
+        alert("Task created successfully");
+      }else{
+        alert("Task creation failed");
+      }
+    };
+  }
   let canvasKeySaved = "<%= canvasKey %>";
   let clickUpKeySaved = "<%= clickUpKey %>";
   let defaultClickUpSpaceSaved = "<%= clickUp.defaultSpaceId %>";
@@ -546,6 +597,5 @@
     spaces: <%-JSON.stringify(clickUp) %>
   }
 </script>
-
 
 </html>

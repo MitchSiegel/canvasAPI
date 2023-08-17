@@ -631,6 +631,40 @@ app.ws('/ws/generate', function(ws) {
         }
     });
   });
+
+app.ws("/ws/addSingleTask",function(ws){
+    ws.on('open', async function open() {
+        console.log("[WS]".cyan + " Connection opened".white);
+    });
+    ws.on('message', async function(msg) {
+        if(!JSON.parse(msg)) return;
+        
+        //handle the received message, which will be data first and will be a json object
+        let data = JSON.parse(msg);
+
+        console.log(data);
+        //check for all required data
+        if(!data.clickUpList || !data.taskName || !data.taskDescription || !data.taskDate){
+            ws.send(JSON.stringify({msgType: "dataUpdate", progress: 0, code: 400, status: "Missing data"}));
+            return;
+        }else{
+            //all good to go, start the process
+
+            //create assignment object
+            let assignment = new Assignment(data.taskName, data.taskDate, "online_upload", data.taskDescription);
+
+            createClickUpTask(assignment, data.clickUpList).then((response) => {
+                if(response.code != 200){
+                    ws.send(JSON.stringify({msgType: "dataUpdate", progress: 0, code: response.code, status: "Error creating task"}));
+                }else{
+                    ws.send(JSON.stringify({msgType: "dataUpdate", progress: 0, code: response.code, status: "Task created"}));
+                    ws.close()
+                }
+            })
+        }
+
+    })
+})
 //start the server, either on port 3001 or the port specified in the environment variables
 app.listen(process.env.PORT || port, () => {
     console.log("[SERVER]".blue +  ` Server started on port `.white + `${(process.env.PORT || port)}`.blue);
