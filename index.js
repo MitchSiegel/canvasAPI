@@ -7,7 +7,6 @@ import { findBestMatch} from 'string-similarity';
 import expressWs from 'express-ws';
 import compression from 'compression';
 const {app} = expressWs(express());
-//const app = express();
 app.set("view engine", "ejs");
 app.use(express.static('public'));
 
@@ -62,8 +61,6 @@ class Assignment {
     constructor(name, dueDate, submissionType,url) {
         this.name = name;
         this.dueDate = dueDate;
-        //convert due date to local time, and then to seconds for clickUp
-        this.clickUpDueDate = moment(dueDate).local().format('x');
         this.submissionType = submissionType;
         this.url = url;
     }
@@ -327,9 +324,21 @@ async function handleClickUpFolders(requestOptions,spaceIndex){
     }
 }
 
-async function createClickUpTask(name, description, due, listId){
-    if(isNaN(due)){ //invalid date in the canvas assignment
+async function createClickUpTask(assignment, listId){
+    if(!assignment.dueDate){ //invalid date in the canvas assignment
         return {body: {}, code: 100};
+    }
+    //date manipulation
+    if(true){ 
+        //if the due date is 11:59pm, we want to move it to 10:59pm
+        if(moment(assignment.dueDate).format("HH:mm") == "23:59") {
+            assignment.dueDate= moment(assignment.dueDate).subtract(1, 'h');
+        }
+
+        //if the due date is 12:00am, we want to move it to 10:59pm 
+        if(moment(assignment.dueDate).format("HH:mm") == "00:00") {
+            assignment.dueDate = moment(assignment.dueDate).subtract(1, 'h').add(1, 'd').subtract(1, 'm');
+        }
     }
     let url = `https://api.clickup.com/api/v2/list/${listId}/task`;
     let headers = {
@@ -337,15 +346,13 @@ async function createClickUpTask(name, description, due, listId){
         'Authorization': Settings.clickUpKey,
     };
     let body = {
-        "name":  name,
-        "description": description,
+        "name":  assignment.name,
+        "description": assignment.url,
         "assignees": [
             Number(Settings.clickUp.userId)
         ],
-        "due_date": due,
+        "due_date": moment(assignment.dueDate).local().format('x'),
         "due_date_time": true,
-        //"start_date": task.startTime  //TODO
-        //"start_date_time": true, //TODO
         "notify_all": false,
         "parent": null,
         "links_to": null,
@@ -410,7 +417,8 @@ async function initialLoad(){
     }
 }
 
-initialLoad();
+//initialLoad();
+runTests();
 
 //index page
 app.get('/', async(req, res) => {
@@ -588,13 +596,9 @@ app.ws('/ws/generate', function(ws, req) {
                             console.log("[GENERATION]".blue + " Skipping task ".white + String(assignments[i].name).blue + " because it is after the cutoff date".white);
                             ws.send(JSON.stringify({msgType: "taskEnd", success:false, assignmentName: assignments[i].name ,progress: requestProgress, code: 200, reason: "cutOffDate"}));
                             continue;
-                        }else{
-                           if(moment(assignments[i].dueDate).format("HH:mm") == "23:59") { //move 11:59pm assignments to 10:59pm
-                                assignments[i].clickUpDueDate = moment(assignments[i].dueDate).subtract(1, "hours").format("x");
-                            }
                         }
                     }
-                    let task = await createClickUpTask(assignments[i].name, assignments[i].url, assignments[i].clickUpDueDate, list.id); //create the task
+                    let task = await createClickUpTask(assignments[i], list.id); //create the task
                     if(task.code != 200 && task.code != 100 /* 100 is the code im using to track invalid dates, but we don't need to say it failed */){
                         console.log("[GENERATION] Error creating task: ".red);
                         ws.send(JSON.stringify({msgType: "taskEnd", success:false, assignmentName: assignments[i].name ,progress: requestProgress, code: task.code, reason: "unknown"}));
@@ -633,3 +637,31 @@ app.listen(process.env.PORT || port, () => {
     console.log("[SERVER]".blue +  ` Server started on port `.white + `${(process.env.PORT || port)}`.blue);
 })
 
+/* testing functions to load in BS data */
+
+async function runTests(){
+    let fileData = await fs.readFile(persistentFile, 'utf8')
+    fileData = JSON.parse(fileData);
+    Settings = fileData.Settings; //load settings from persistent file
+    //create dummy course [some random cs course]
+
+    let course = new Course("CS 1000", 1000, "https://canvas.colorado.edu/feeds/calendars/course_1234567890.ics");
+    Courses.push(course);
+
+    //create dummy assignments (one due at 11:59, one due at 12am, and one due at a random time - assignments should ALL be in mountain time)
+
+    let assignment1 = new Assignment("Assignment 1", "2023-10-02T05:59:00Z", "online_upload", "https://canvas.colorado.edu/courses/1234567890/assignments/1234567890");
+    let assignment2 = new Assignment("Assignment 2", "2023-10-01T06:00:00Z", "online_upload", "https://canvas.colorado.edu/courses/1234567890/assignments/1234567890");
+    let assignment3 = new Assignment("Assignment 3", "2023-10-01T22:45:00Z", "online_upload", "https://canvas.colorado.edu/courses/1234567890/assignments/1234567890");
+
+    console.log(assignment1)
+    course.addAssignment(assignment1);
+    course.addAssignment(assignment2);
+    course.addAssignment(assignment3);
+
+    //for testing we should still be okay using real clickUp data
+    await getClickUpTeamId();
+    await getClickUpSpaces();
+    await getClickUpLists();
+
+}

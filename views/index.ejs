@@ -445,7 +445,9 @@
           if(data.msgType == "done"){
             progressBar.setAttribute('value', 100);
           };
-          cutOffDate.value = ""; //reset the cutoff date
+          if(cutOff != "none"){
+            cutOffDate.value = ""; //reset the cutoff date
+          }
         }
     }
     
