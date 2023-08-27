@@ -7,8 +7,18 @@ import { findBestMatch} from 'string-similarity';
 import expressWs from 'express-ws';
 import compression from 'compression';
 const {app} = expressWs(express());
-app.set("view engine", "ejs");
-app.use(express.static('public'));
+import open from 'open';
+
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+app.use(express.static(join(__dirname, 'public')));
+app.set('view engine', 'ejs');
+app.set('views', join(__dirname, 'views'));
+
 
 app.use(compression()); //compresses the web page
 
@@ -416,8 +426,8 @@ async function initialLoad(){
     }
 }
 
-//initialLoad();
-runTests();
+initialLoad();
+//runTests();
 
 //index page
 app.get('/', async(req, res) => {
@@ -666,8 +676,9 @@ app.ws("/ws/addSingleTask",function(ws){
     })
 })
 //start the server, either on port 3001 or the port specified in the environment variables
-app.listen(process.env.PORT || port, () => {
+const server = app.listen(process.env.PORT || port, () => {
     console.log("[SERVER]".blue +  ` Server started on port `.white + `${(process.env.PORT || port)}`.blue);
+    open(`http://localhost:${(process.env.PORT || port)}`);
 })
 
 /* testing functions to load in BS data */
@@ -696,3 +707,21 @@ async function runTests(){
     await getClickUpLists();
 
 }
+
+//handle SIGINT and SIGTERM
+
+process.on('SIGINT', () => {
+    console.log('Received SIGINT. Shutting down.');
+    server.close(() => {
+        console.log('Server closed.');
+        process.exit(0);
+    });
+});
+
+process.on('SIGTERM', () => {
+    console.log('Received SIGTERM. Shutting down.');
+    server.close(() => {
+        console.log('Server closed.');
+        process.exit(0);
+    });
+});
