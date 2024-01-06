@@ -172,8 +172,15 @@ body {
   font-size: 3rem;
   z-index: 1000;
 }
+.bulk-icon {
+  position: fixed;
+  bottom: 2rem;
+  right: 20%;
+  font-size: 3rem;
+  z-index: 1000;
+}
 
-.settings-icon:hover, .add-icon:hover {
+.settings-icon:hover, .add-icon:hover, .bulk-icon:hover {
   cursor: pointer;
 }
 .settings-icon a {

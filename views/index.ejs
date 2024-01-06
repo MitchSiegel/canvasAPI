@@ -25,6 +25,10 @@
     <i class="fas fa-circle-plus"></i>
     </a>
   </div>
+  <div class="bulk-icon">
+    <i class="fas fa-circle-star"></i>
+    </a>
+  </div>
 
   <header>
     <div class="container has-text-centered">
@@ -281,6 +285,33 @@
             </div>
           </div>
 
+          <!-- single clickup task add on -->
+          <div class="modal" id="newBulkModal">
+            <div class="modal-background"></div>
+            <div class="modal-content">
+              <!-- the new content starts here -->
+              <div class="modal-card">
+                <header class="modal-card-head">
+                  <p class="modal-card-title">Add tasks in bulk</p>
+                  <button class="delete" aria-label="close"></button>
+                </header>
+
+                <section class="modal-card-body">
+                  <p> Add tasks in bulk in json array. Should follow this structure<br> 
+                    {name: "Name of assignment", dueAt: "js date string", submissionType:"Canvas submission type, like online_quiz", url:"url to canvas assignment"}</p>
+                  <div class="item-centered">
+                    <label for="taskN">JSON Array</label>
+                    <textarea class="input" type="text" id="taskN"></textarea> 
+                  </div>
+                </section>
+
+                <section class="modal-card-foot">
+                  <button class="button is-custom is-centered" onclick="bulkAdd()">Add bulk</button>
+                </section>
+                <!-- the new content ends here -->
+              </div>
+            </div>
+          </div>
 
     </div>
   </section>
@@ -315,7 +346,9 @@
     //loading stuff
     const preLoad = document.getElementById('preLoad'), load = document.getElementById('load'), postLoad = document.getElementById('postLoad');
     //new task modal
-    const newTaskModal = document.getElementById('newTaskModal'), addIcon = document.querySelector('.add-icon'), newTaskCloseButton = newTaskModal.querySelector('.delete');
+    const newTaskModal = document.getElementById('newTaskModal'), addIcon = document.querySelector('.add-icon'), newTaskCloseButton = newTaskModal.querySelector('.delete'); 
+    //new bulk task modal
+    const newBulkModal = document.getElementById('newBulkModal'), bulkIcon = document.querySelector('.bulk-icon'), newBulkCloseButton = newTaskModal.querySelector('.delete');
     //other stuff
     const taskList = document.getElementById('taskList');
     const generateButtons = document.querySelectorAll('.button.is-primary');
@@ -344,6 +377,10 @@
       newTaskModal.classList.remove('is-active');
     });
 
+    newBulkCloseButton.addEventListener('click', () => {
+      newBulkModal.classList.remove('is-active');
+    });
+
     taskModal.querySelector('.delete').addEventListener('click', () => {
       taskModal.classList.remove('is-active');
     });
@@ -359,6 +396,15 @@
     newTaskModal.querySelector('.modal-background').addEventListener('click', () => {
       newTaskModal.classList.remove('is-active');
     });
+
+    newBulkModal.querySelector('.modal-background').addEventListener('click', () => {
+      newBulkModal.classList.remove('is-active');
+    });
+
+    bulkIcon.addEventListener('click', () => {
+      newBulkModal.classList.add('is-active');
+    });
+
 
     generateButtons.forEach(button => {
 
