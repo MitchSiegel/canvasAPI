@@ -511,13 +511,13 @@ app.ws('/ws/generate', function(ws) {
     let requestProgress = 0;
     
     ws.on('open', async function open() {
-        console.log("[WS]".cyan + " Connection opened".white);
+        console.log("[WS]".cyan + " Connection opened for generation".white);
     });
     ws.on('message', async function(msg) {
         if(!JSON.parse(msg)) return;
         //handle the received message, which will be data first and will be a json object
         let data = JSON.parse(msg);
-        if(data && data.msgType == "generateData") {
+        if(data && data.msg == "generateData") {
             console.log("[WS]".cyan + " Generate request received".white);
             requestInfo = data;
             if(requestInfo.ignoreTags){
@@ -528,7 +528,7 @@ app.ws('/ws/generate', function(ws) {
             }
             if(requestInfo.clickUpList && requestInfo.cutOffDate && requestInfo.courseId) {
                 //send back a message saying that the data was received, and that the generation is starting
-                ws.send(JSON.stringify({msgType: "dataUpdate", progress: 0, code: 200, status: "All data received, starting generation"}));
+                ws.send(JSON.stringify({msg: "dataUpdate", progress: 0, code: 200, status: "All data received, starting generation"}));
                 let cutOffDate = requestInfo.cutOffDate;
                 let ignoreDuplicates = requestInfo.ignoreDuplicates == true ? true : false;
                 let clickUpList = requestInfo.clickUpList;
@@ -544,25 +544,16 @@ app.ws('/ws/generate', function(ws) {
                 //find course and make sure its valid
                 let course = Courses.find(course => course.getId() == courseId);
                 if(course == undefined) {
-                    ws.send(JSON.stringify({msgType: "processEnd", progress: 0, code: 400, status: "Invalid course id"}));
+                    ws.send(JSON.stringify({msg: "processEnd", progress: 0, code: 400, status: "Invalid course id"}));
                     return;
                 }
                 if(course.getAssignments().length == 0) {
-                    ws.send(JSON.stringify({msgType: "processEnd", progress: 0, code: 400, status: "No assignments found for course"}));
+                    ws.send(JSON.stringify({msg: "processEnd", progress: 0, code: 400, status: "No assignments found for course"}));
                     return;
                 }
                 //find clickup list and make sure its valid
-                let list = undefined;
-                for(let i=0; i < Settings.clickUp.spaces.length; i++) {
-                    let space = Settings.clickUp.spaces[i];
-                    for(let j=0; j < space.lists.length; j++) {
-                        if(space.lists[j].id == clickUpList) {
-                            list = space.lists[j];
-                        }
-                    }
-                }
-                if(list == undefined) {
-                    ws.send(JSON.stringify({msgType: "processEnd", progress: 0, code: 400, status: "Invalid clickup list id"}));
+                if(!isValidClickupList(clickUpList)) {
+                    ws.send(JSON.stringify({msg: "processEnd", progress: 0, code: 400, status: "Invalid clickup list id"}));
                     return;
                 }
                 let clickUpTasks = ["none"];
@@ -575,13 +566,13 @@ app.ws('/ws/generate', function(ws) {
                 let assignments = course.getAssignments();
                 for(let i=0; i < assignments.length; i++) {
                     requestProgress = Math.round((i / assignments.length) * 100); //for progress bar (not used yet)
-                    ws.send(JSON.stringify({msgType: "taskStart", assignmentName: assignments[i].name ,progress: requestProgress, code: 200, status: "Generating tasks"}));
+                    ws.send(JSON.stringify({msg: "taskStart", assignmentName: assignments[i].name ,progress: requestProgress, code: 200, status: "Generating tasks"}));
                     if(ignoreDuplicates) {
                         //check if the assignment already exists in clickup
                         let a = findBestMatch(assignments[i].name, clickUpTasks);
                         if(a.bestMatch.rating > 0.85) {
                             console.log("[GENERATION]".blue + " Skipping task ".white + String(a.bestMatch.target).blue + " because it already exists in ClickUp".white);
-                            ws.send(JSON.stringify({msgType: "taskEnd", success:false, assignmentName: assignments[i].name ,progress: requestProgress, code: 200, reason: "duplicate"}));
+                            ws.send(JSON.stringify({msg: "taskEnd", success:false, assignmentName: assignments[i].name ,progress: requestProgress, code: 200, reason: "duplicate"}));
                             continue;
                         }
                     }
@@ -591,7 +582,7 @@ app.ws('/ws/generate', function(ws) {
                         for(let j=0; j < ignoreTags.length; j++) {
                             if(assignments[i].name.toLowerCase().includes(ignoreTags[j].toLowerCase())) {
                                 ignore = true;
-                                ws.send(JSON.stringify({msgType: "taskEnd", success:false, assignmentName: assignments[i].name ,progress: requestProgress, code: 200, reason: "ignoreTag"}));
+                                ws.send(JSON.stringify({msg: "taskEnd", success:false, assignmentName: assignments[i].name ,progress: requestProgress, code: 200, reason: "ignoreTag"}));
                                 break;
                             }
                         }
@@ -603,27 +594,27 @@ app.ws('/ws/generate', function(ws) {
                     if(cutOffDate != undefined) {
                         if(assignments[i].dueDate.isAfter(cutOffDate)) {
                             console.log("[GENERATION]".blue + " Skipping task ".white + String(assignments[i].name).blue + " because it is after the cutoff date".white);
-                            ws.send(JSON.stringify({msgType: "taskEnd", success:false, assignmentName: assignments[i].name ,progress: requestProgress, code: 200, reason: "cutOffDate"}));
+                            ws.send(JSON.stringify({msg: "taskEnd", success:false, assignmentName: assignments[i].name ,progress: requestProgress, code: 200, reason: "cutOffDate"}));
                             continue;
                         }
                     }
                     let task = await createClickUpTask(assignments[i], list.id); //create the task
                     if(task.code != 200 && task.code != 100 /* 100 is the code im using to track invalid dates, but we don't need to say it failed */){
                         console.log("[GENERATION] Error creating task: ".red);
-                        ws.send(JSON.stringify({msgType: "taskEnd", success:false, assignmentName: assignments[i].name ,progress: requestProgress, code: task.code, reason: "unknown"}));
+                        ws.send(JSON.stringify({msg: "taskEnd", success:false, assignmentName: assignments[i].name ,progress: requestProgress, code: task.code, reason: "unknown"}));
                         continue;
                     }else{
                         if(task.body.id != undefined){
-                            ws.send(JSON.stringify({msgType: "taskEnd", success:true, assignmentName: assignments[i].name ,progress: requestProgress, code: 200, reason: "none"}));
+                            ws.send(JSON.stringify({msg: "taskEnd", success:true, assignmentName: assignments[i].name ,progress: requestProgress, code: 200, reason: "none"}));
                             console.log("[GENERATION]".blue + " Created task with id: ".white + String(task.body.id).cyan + " in list ".white + String(list.name).cyan);
                         }else{
-                            ws.send(JSON.stringify({msgType: "taskEnd", success:false, assignmentName: assignments[i].name ,progress: requestProgress, code: 200, reason: "invalidDate"}));
+                            ws.send(JSON.stringify({msg: "taskEnd", success:false, assignmentName: assignments[i].name ,progress: requestProgress, code: 200, reason: "invalidDate"}));
                             console.log("[GENERATION]".blue + " Skipped assignment with: ".white + String(assignments[i].name).cyan + " due to invalid date".white);
                         }
             
                     }
                 }
-                ws.send(JSON.stringify({msgType: "done", progress: 100, code: 200, status: "Finished"}));
+                ws.send(JSON.stringify({msg: "done", progress: 100, code: 200, status: "Finished"}));
                 ws.close();
             }else{
                 let missingDataType = "";
@@ -636,11 +627,11 @@ app.ws('/ws/generate', function(ws) {
                 }else if(!requestInfo.courseId) {
                     missingDataType = "courseId";
                 }
-                ws.send(JSON.stringify({msgType: "dataUpdate", progress: 0, code: 400, status: "Missing data - " + missingDataType}));
+                ws.send(JSON.stringify({msg: "dataUpdate", progress: 0, code: 400, status: "Missing data - " + missingDataType}));
             }
         }
     });
-  });
+});
 
 app.ws("/ws/addSingleTask",function(ws){
     ws.on('open', async function open() {
@@ -652,10 +643,9 @@ app.ws("/ws/addSingleTask",function(ws){
         //handle the received message, which will be data first and will be a json object
         let data = JSON.parse(msg);
 
-        console.log(data);
         //check for all required data
         if(!data.clickUpList || !data.taskName || !data.taskDescription || !data.taskDate){
-            ws.send(JSON.stringify({msgType: "dataUpdate", progress: 0, code: 400, status: "Missing data"}));
+            ws.send(JSON.stringify({msg: "dataUpdate", progress: 0, code: 400, status: "Missing data"}));
             return;
         }else{
             //all good to go, start the process
@@ -665,9 +655,9 @@ app.ws("/ws/addSingleTask",function(ws){
 
             createClickUpTask(assignment, data.clickUpList).then((response) => {
                 if(response.code != 200){
-                    ws.send(JSON.stringify({msgType: "dataUpdate", progress: 0, code: response.code, status: "Error creating task"}));
+                    ws.send(JSON.stringify({msg: "dataUpdate", progress: 0, code: response.code, status: "Error creating task"}));
                 }else{
-                    ws.send(JSON.stringify({msgType: "dataUpdate", progress: 0, code: response.code, status: "Task created"}));
+                    ws.send(JSON.stringify({msg: "dataUpdate", progress: 0, code: response.code, status: "Task created"}));
                     ws.close()
                 }
             })
@@ -675,6 +665,70 @@ app.ws("/ws/addSingleTask",function(ws){
 
     })
 })
+
+//new async endpoint for adding multiple tasks in bulk, as of right now, no progress updates are sent back, but that could be added in the future
+app.ws("/ws/addBulk", async function(ws){
+    ws.on('open', async function open() {
+        console.log("[WS]".cyan + " Connection opened for bulk add".white);
+    });
+    //handle incoming messages
+    ws.on('message', async function(msg) {
+        if(!JSON.parse(msg)) return; 
+        let data = JSON.parse(msg);
+        //handle the received message, which will be a "tag" first and then json
+        if(data.msg == "bulkData"){
+            let bulkData = data.json;
+            console.log("[WS]".cyan + " Bulk add request received".white);
+            ws.send(JSON.stringify({msg: "start", progress: 0, code: 200, status: "All data received, starting generation"}));
+
+            //loop through the bulk data and create a task for each one
+
+            for(let i = 0; i < bulkData.length; i++){
+                
+                //check and make sure all required data is there (name, dueAt, url (optional), clickUpListId)
+                if(!bulkData[i].name || !bulkData[i].dueAt || !bulkData[i].clickUpListId){
+                    ws.send(JSON.stringify({msg: "update", progress: 0, code: 400, status: "Missing data", index: i}));
+                    continue;
+                }
+                //allow both clickUpListId and dueAt to be sent as strings or numbers
+                bulkData[i].clickUpListId = Number(bulkData[i].clickUpListId);
+                bulkData[i].dueAt = Number(bulkData[i].dueAt);
+                //check if the due date is valid (in future & valid date)
+                if(!moment(bulkData[i].dueAt).isValid() || moment(bulkData[i].dueAt).isBefore(moment())){
+                    ws.send(JSON.stringify({msg: "invalidInfo", progress: 0, code: 400, status: "Invalid date", index: i}));
+                    continue;
+                }
+
+                //check if the clickUpListId is valid
+                if(!isValidClickupList(bulkData[i].clickUpListId)){
+                    ws.send(JSON.stringify({msg: "invalidInfo", progress: 0, code: 400, status: "Invalid clickUpListId", index: i}));
+                    continue;
+                }
+
+                bulkData[i].url = bulkData[i].url || ""; 
+
+
+                //create assignment object
+                let assignment = new Assignment(bulkData[i].name, bulkData[i].dueAt, "null", bulkData[i].url); //submission type is null because we don't need it for bulk add
+
+                let task = await createClickUpTask(assignment, bulkData[i].clickUpListId);
+                if(task.code != 200){
+                    ws.send(JSON.stringify({msg: "taskError", progress: 0, code: task.code, status: "Error creating task. Please see console", index: i}));
+                    console.log(task);
+                    continue;
+                }else{
+                    ws.send(JSON.stringify({msg: "taskSuccess", progress: 0, code: task.code, status: "Task created", index: i}));
+                }
+            }
+            ws.send(JSON.stringify({msg: "done", progress: 100, code: 200, status: "Finished"}));
+            ws.close();
+            console.log("[WS]".cyan + " Bulk add request finished".white);
+            return;
+        }
+
+    })
+
+});
 //start the server, either on port 3001 or the port specified in the environment variables
 const server = app.listen(process.env.PORT || port, () => {
     console.log("[SERVER]".blue +  ` Server started on port `.white + `${(process.env.PORT || port)}`.blue);
@@ -708,7 +762,22 @@ async function runTests(){
 
 }
 
-//handle SIGINT and SIGTERM
+/* helper functions */ 
+
+async function isValidClickupList(clickUpList){
+    let list = false;
+    for(let i=0; i < Settings.clickUp.spaces.length; i++) {
+        let space = Settings.clickUp.spaces[i];
+        for(let j=0; j < space.lists.length; j++) {
+            if(space.lists[j].id == clickUpList) {
+                list = space.lists[j];
+            }
+        }
+    }
+    return (list != false);
+}
+
+//handle SIGINT and SIGTERM (used to make sure the server closes properly)
 
 process.on('SIGINT', () => {
     console.log('Received SIGINT. Shutting down.');

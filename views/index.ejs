@@ -266,9 +266,9 @@
                               <option value="<%= list.id %>">
                                 <%= list.name %>
                               </option>
-                              <% }) %>
-                                <% }}) %>
-                                  <% } %>
+                            <% }) %>
+                          <% }}) %>
+                      <% } %>
                     </select>
                   </div>
                   <div class="item-centered">
@@ -297,16 +297,25 @@
                 </header>
 
                 <section class="modal-card-body">
-                  <p> Add tasks in bulk in json array. Should follow this structure<br> 
-                    {name: "Name of assignment", dueAt: "js date string", submissionType:"Canvas submission type, like online_quiz", url:"url to canvas assignment"}</p>
+                  <p class="has-text-weight-normal">Example: [{"name":"testing", "dueAt":1704817552642, "clickUpListId":000000000000, url:"https://example.com"}]</p>
+                  <p class="has-text-weight-normal">Please see README for usage and more examples.</p>
+                  <p>Your current clickUp list ids: (change clickUp space if you don't see your desired list)</p>
+                  <% if (clickUp.defaultSpaceId) { %>
+                    <% clickUp.spaces.forEach(element=> { %>
+                      <% if(element.id==clickUp.defaultSpaceId) { %>
+                        <% element.lists.forEach(list=> { %>
+                          <p class="has-text-weight-normal"><%= list.id %>: <%= list.name %></p>
+                        <% }) %>
+                      <% }}) %>
+                  <% } %>
                   <div class="item-centered">
-                    <label for="taskN">JSON Array</label>
-                    <textarea class="input" type="text" id="taskN"></textarea> 
+                    <label for="bulkText" id="bulkStatus">JSON Array</label>
+                    <textarea class="input" type="text" id="bulkText" rows="10">[]</textarea> 
                   </div>
                 </section>
 
                 <section class="modal-card-foot">
-                  <button class="button is-custom is-centered" onclick="bulkAdd()">Add bulk</button>
+                  <button class="button is-custom is-centered" onclick="addBulk()">Add bulk</button>
                 </section>
                 <!-- the new content ends here -->
               </div>
@@ -546,7 +555,7 @@
     //wait for the websocket to open
     await new Promise(resolve => websocket.onopen = resolve);
     websocket.send(JSON.stringify({
-      msgType: "generateData",
+      msg: "generateData",
       clickUpList: clickUpList.value,
       ignoreDuplicates: ignoreDuplicates.checked,
       courseId: currentParam,
@@ -556,10 +565,8 @@
     taskModal.classList.add('is-active');
     //event listener for when the websocket sends a message
     websocket.onmessage = function (event) {
-      console.log(event.data);
       let data = JSON.parse(event.data);
-      console.log(data);
-      if (data.msgType == "taskStart") {
+      if (data.msg == "taskStart") {
         const element = document.getElementById(`task-${data.assignmentName.replace(/ /g, '-')}`);
         const elementIcon = element.querySelector('i');
         element.classList.remove('not-active');
@@ -568,7 +575,7 @@
         elementIcon.classList.add('fa-spinner');
         elementIcon.classList.add('fa-spin');
       };
-      if (data.msgType == "taskEnd") {
+      if (data.msg == "taskEnd") {
         const element = document.getElementById(`task-${data.assignmentName.replace(/ /g, '-')}`);
         const elementIcon = element.querySelector('i');
         element.classList.remove('active');
@@ -589,7 +596,7 @@
         }
         progressBar.setAttribute('value', data.progress);
       };
-      if (data.msgType == "done") {
+      if (data.msg == "done") {
         progressBar.setAttribute('value', 100);
       };
       if (cutOff != "none") {
@@ -632,6 +639,74 @@
       }
     };
   }
+
+  //add bulk tasks function
+  async function addBulk(){
+    //first let's make sure its valid json & that it's an array
+    let json = document.querySelector('#bulkText').value;
+    let parsedJson;
+    let erroredJson = []; //spit out the errored jsons at the end so the user can fix them
+
+    try{
+      parsedJson = JSON.parse(json);
+      if(!Array.isArray(parsedJson)){
+        alert("Must be JSON array");
+        return;
+      }
+      //check not empty
+      if(parsedJson.length == 0){
+        alert("JSON array cannot be empty");
+        return;
+      }
+    }catch(e){
+      alert("Invalid JSON");
+      return;
+    }
+    
+    //now we are good to go, so let's start the ws. 
+    const websocket = new WebSocket('ws://localhost:<%= port %>/ws/addBulk');
+    await new Promise(resolve => websocket.onopen = resolve);
+    let displayResp = document.querySelector('#bulkText');
+    websocket.send(JSON.stringify({
+      msg: "bulkData",
+      json: parsedJson
+    }));
+
+    //handle the responses
+    websocket.onmessage = function (event) {
+      let data = JSON.parse(event.data);
+
+      //handle start
+      if(data.msg == "start"){
+        displayResp.value = `Adding ${parsedJson.length} tasks...`;
+      }
+      //handle update
+      if(data.msg == "update"){
+        displayResp.value += `Status: ${JSON.stringify(data.status)}`;
+      }
+
+      //handle invalid info & task error
+      if(data.msg == "invalidInfo" || data.msg == "taskError"){
+        displayResp.value += `\nStatus: Failed to add ${JSON.stringify(parsedJson[data.index])} because ${data.status}.`;
+        erroredJson.push(parsedJson[data.index]);
+      }
+
+      if(data.msg == "taskSuccess"){
+        displayResp.value += `\nStatus: Successfully added task ${JSON.stringify(parsedJson[data.index].name)}.`;
+      }
+
+      if(data.msg == "done"){
+        displayResp.value += `\n\nDone! :) \n`;
+        if(erroredJson.length > 0){
+          displayResp.value += `\nThe following tasks failed to add: ${JSON.stringify(erroredJson)}`;
+        }else{
+          displayResp.value += `\nAll tasks added successfully!`;
+        }
+        //newBulkModal.classList.remove('is-active');
+      }
+    };
+  }
+
   let canvasKeySaved = "<%= canvasKey %>";
   let clickUpKeySaved = "<%= clickUpKey %>";
   let defaultClickUpSpaceSaved = "<%= clickUp.defaultSpaceId %>";

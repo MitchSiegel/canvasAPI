@@ -13,7 +13,7 @@
     "string-similarity": "^4.0.4"
   },
   "scripts": {
-    "start": "ts-node index.ts"
+    "start": "node index.js"
   },
   "type": "module"
 }

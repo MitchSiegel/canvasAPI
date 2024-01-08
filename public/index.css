@@ -354,3 +354,6 @@ label {
 .custom-colors[value="100"]::-webkit-progress-value {
   background-color: #50fa7b !important;
 }
+textarea{
+  min-height: 200px !important;
+}

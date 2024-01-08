@@ -17,19 +17,47 @@ Completed Features:
 - [x] Support nicknames for courses 
 - [x] Better UI updates to show progress
 - [x] Add a way to ignore assignments that contain certain words
+- [x] Added support for just importing tasks from JSON data. 
 
-Features to be added:
-- [ ] monday.com support is in the works 
 
 Features that can't be added:
 - OAuth2.0 for Canvas (Cannot generate client IDs as a student)
-## How to use & other random info
-(in progress)
+# How to use 
 
-You need Node.js installed to run this program. You should also have a Canvas API key and a ClickUp API key. You can get both of these from your respective accounts. 
-I am unable to use OAuth from Canvas as a student, so you'll need to find to a way to generate a [Canvas API Key](https://community.canvaslms.com/t5/Student-Guide/How-do-I-manage-API-access-tokens-as-a-student/ta-p/273).
+### Pre-requisites
+1. [Node.js](https://nodejs.org/en/) is required to run this program.
+2. You need a [ClickUp API Key](https://docs.clickup.com/en/articles/1367130-getting-started-with-the-clickup-api) and a [Canvas API Key](https://community.canvaslms.com/t5/Student-Guide/How-do-I-manage-API-access-tokens-as-a-student/ta-p/273) to use this program.
 
-### Data Storage 
+That's it!
+### Installation
+1. Clone this repository
+2. Run `npm install` in the root directory of the repository
+3. Run `npm start` to start the program
+4. Program will open in your default browser
+5. You'll need to enter your API keys and other settings in the UI, which is in the top right corner of the screen.
+
+### Bulk Importing Tasks
+This feature allows you to easily add tasks from the JSON format. This was created as I often have repeating tasks that I need to add to ClickUp, and aren't on Canvas. For example, weekly WebAssign assignments.
+
+Tasks follow this JSON structure:
+```json 
+{
+    "name": "Task Name",
+    "dueAt": 1704817552642, // Due date in milliseconds
+    "clickUpListId": 123456789, // There is a list of list IDs in the UI on the add tasks in bulk page.
+    "url": "https://example.com", // URL to the task (optional) - also this just adds to the description, so you can technically add anything here
+},
+//Example
+[{
+    "name": "WebAssign 1",
+    "dueAt": 1704817552642,
+    "clickUpListId": 123456789,
+    "url": "https://example.com",
+}]
+```
+To use this feature, click the star icon in bottom right, next to the plus icon. This will open a popup with a textarea in it. Paste your JSON array of tasks into the textarea and click "Add bulk". The program will then add all of the tasks to ClickUp. You will see progress in the same textarea you pasted the data into.
+
+### Persistent Data
 Data is stored in a JSON filed called "persistent.json". This file is created and managed automatically, however, I have included in the structure below. All of the settings are configurable in the UI, so you don't need to worry about this file unless you want to.
 
 ```json
@@ -62,5 +90,6 @@ Data is stored in a JSON filed called "persistent.json". This file is created an
             "id": 0,
         }
     ],
-    "lastPullDate": "2023-01-01T00:00:00.000Z" // Date of last pull from Canvas, used to determine if classes should be re-pulled from Canvas, default is every 30 days
+    "lastPullDate": "2024-01-01T00:00:00.000Z" // Date of last pull from Canvas, used to determine if classes should be re-pulled from Canvas, default is every 30 days
 }
+```
