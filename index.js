@@ -94,14 +94,6 @@ class Space {
     }
 }
 
-//clickUp Lists class
-class List {
-    constructor(name, id) {
-        this.name = name;
-        this.id = id;
-    }
-}
-
 //classes end
 
 //check if persistent file exists, if not create it
@@ -211,8 +203,8 @@ async function loadAssignments(course) {
     let response = await fetch(`https://canvas.colorado.edu/api/v1/courses/${courseID}/assignments?order_by=due_at&bucket=future`, requestOptions);
     let data = await response.json();
     for (let j = 0; j < data.length; j++) {
-    let assignment = new Assignment(data[j].name, data[j].due_at, data[j].submission_types, data[j].html_url);
-    course.addAssignment(assignment);
+        let assignment = new Assignment(data[j].name, data[j].due_at, data[j].submission_types, data[j].html_url);
+        course.addAssignment(assignment);
     }
     console.log("[CANVAS]".yellow + " Assignments pulled from canvas for course: ".white + courseID.toString().yellow);
 }

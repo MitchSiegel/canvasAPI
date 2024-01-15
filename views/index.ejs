@@ -448,6 +448,12 @@
           progressBar.value = 0;
           isLoading = false;
         });
+        //handle courses with zero assignments 
+        if(data.assignments.length == 0){
+          submitButton.disabled = true;
+          isLoading = false;
+          postLoad.innerHTML = `${data.courseName} has no future assignments. Submit button disabled.`;
+        }
       });
     });
 
