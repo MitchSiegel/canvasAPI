@@ -559,9 +559,9 @@ app.ws('/ws/generate', function(ws) {
                 let clickUpTasks = ["none"];
                 //we really only need to get the tasks if we are ignoring duplicates. Getting the task will slow down the process, so we only want to do it if we need to
                 if(ignoreDuplicates) {
-                    clickUpTasks = await getClickUpListTasks(list.id);
+                    clickUpTasks = await getClickUpListTasks(clickUpList);
                 }
-                console.log("[API]".cyan + " Generating ClickUp Tasks for".white + " course ".white + course.getName().yellow + " and ClickUp list ".white + String(list.name).green);
+                console.log("[API]".cyan + " Generating ClickUp Tasks for".white + " course ".white + course.getName().yellow + " and ClickUp list ".white + clickUpList.green);
                 //we need to loop through the assignment list and create a new assignment for each one
                 let assignments = course.getAssignments();
                 for(let i=0; i < assignments.length; i++) {
@@ -598,7 +598,7 @@ app.ws('/ws/generate', function(ws) {
                             continue;
                         }
                     }
-                    let task = await createClickUpTask(assignments[i], list.id); //create the task
+                    let task = await createClickUpTask(assignments[i], clickUpList); //create the task
                     if(task.code != 200 && task.code != 100 /* 100 is the code im using to track invalid dates, but we don't need to say it failed */){
                         console.log("[GENERATION] Error creating task: ".red);
                         ws.send(JSON.stringify({msg: "taskEnd", success:false, assignmentName: assignments[i].name ,progress: requestProgress, code: task.code, reason: "unknown"}));
@@ -606,7 +606,7 @@ app.ws('/ws/generate', function(ws) {
                     }else{
                         if(task.body.id != undefined){
                             ws.send(JSON.stringify({msg: "taskEnd", success:true, assignmentName: assignments[i].name ,progress: requestProgress, code: 200, reason: "none"}));
-                            console.log("[GENERATION]".blue + " Created task with id: ".white + String(task.body.id).cyan + " in list ".white + String(list.name).cyan);
+                            console.log("[GENERATION]".blue + " Created task with id: ".white + String(task.body.id).cyan + " in list ".white + clickUpList.cyan);
                         }else{
                             ws.send(JSON.stringify({msg: "taskEnd", success:false, assignmentName: assignments[i].name ,progress: requestProgress, code: 200, reason: "invalidDate"}));
                             console.log("[GENERATION]".blue + " Skipped assignment with: ".white + String(assignments[i].name).cyan + " due to invalid date".white);
