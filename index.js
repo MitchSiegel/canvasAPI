@@ -94,6 +94,13 @@ class Space {
     }
 }
 
+class List {
+    constructor(name, id) {
+        this.name = name;
+        this.id = id;
+    }
+}
+
 //classes end
 
 //check if persistent file exists, if not create it
