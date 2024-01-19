@@ -394,10 +394,10 @@ async function getClickUpListTasks(listId){
     var requestOptions = {
         method: 'GET',
         headers: myHeaders,
-        redirect: 'follow'
+        redirect: 'follow',
     };
 
-    let responseData = await fetch(`https://api.clickup.com/api/v2/list/${listId}/task`, requestOptions);
+    let responseData = await fetch(`https://api.clickup.com/api/v2/list/${listId}/task?include_closed='true'`, requestOptions);
     let data = await responseData.json();
     let taskNames = [];
     for(var i = 0; i < data.tasks.length; i++){
