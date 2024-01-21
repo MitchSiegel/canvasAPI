@@ -501,7 +501,19 @@ app.get("/api/getAssignments/:courseId", async(req, res) => {
         return;
     }
     await loadAssignments(course);
-    res.json({success: true, assignments: course.assignments,courseName: course.getName()});
+    //find similar clickup list and offer it to the client [only if default space is set]
+    let match = {name: "none", id: 0};
+    if(Settings.clickUp.defaultSpaceId != "") {
+        let names = [];
+        let space = Settings.clickUp.spaces.find(space => space.id == Settings.clickUp.defaultSpaceId);
+        for(let i=0; i < space.lists.length; i++) {
+            names.push(space.lists[i].name);
+        }
+        match = findBestMatch(course.getName(), names);
+        match = (match.bestMatch.rating > 0.50 ? space.lists[match.bestMatchIndex] : {name: "none", id: 0});
+        console.log(match);
+    }
+    res.json({success: true, assignments: course.assignments,courseName: course.getName(), matchingList: match});
 });
 
 //new endpoint for generating assignments, will use web socket to send progress updates

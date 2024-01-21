@@ -77,9 +77,9 @@
                                 <option value="<%= list.id %>">
                                   <%= list.name %>
                                 </option>
-                                <% }) %>
-                                  <% }}) %>
-                                    <% } %>
+                              <% }) %>
+                          <% }}) %>
+                        <% } %>
                       </select>
                     </div>
                   </div>
@@ -425,6 +425,10 @@
         const res = await fetch('/api/getAssignments/' + currentParam);
 
         const data = await res.json();
+        if(data.matchingList.id != 0){
+          clickUpList.value = data.matchingList.id;
+        }
+        console.log(data)
         preLoad.classList.add('is-hidden');
         load.classList.add('is-hidden');
         submitButton.disabled = false;
