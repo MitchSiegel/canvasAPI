@@ -580,7 +580,7 @@ app.ws('/ws/generate', function(ws) {
                     if(ignoreDuplicates) {
                         //check if the assignment already exists in clickup
                         let a = findBestMatch(assignments[i].name, clickUpTasks);
-                        if(a.bestMatch.rating > 0.90) {
+                        if(a.bestMatch.rating > 0.95) {
                             console.log("[GENERATION]".blue + " Skipping task ".white + String(a.bestMatch.target).blue + " because it already exists in ClickUp".white);
                             ws.send(JSON.stringify({msg: "taskEnd", success:false, assignmentName: assignments[i].name ,progress: requestProgress, code: 200, reason: "duplicate"}));
                             continue;
