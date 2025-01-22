@@ -3,25 +3,8 @@
 My final goal of this repository is to make a program that takes my assignments from canvas and puts them into my task management software, in this case, it will be clickup.
 
 This repository is a work in progress, and I will be updating it as I go along.
+TODO: update this readme with new command line arguments ("-all" & "--vhl")
 
-Completed Features: 
-- [x] UI for all of this
-- [x] Pull all needed data from Canvas
-- [x] Pull all needed data from ClickUp
-- [x] Hide courses you don't want to see
-- [x] Add assignments to ClickUp
-- [x] Check for duplicates
-- [x] Add a cutoff date for adding assignments
-- [x] Save to JSON file to avoid calling the API every time
-- [x] Detailed progress when adding assignments (possible with WebSockets)
-- [x] Support nicknames for courses 
-- [x] Better UI updates to show progress
-- [x] Add a way to ignore assignments that contain certain words
-- [x] Added support for just importing tasks from JSON data. 
-
-
-Features that can't be added:
-- OAuth2.0 for Canvas (Cannot generate client IDs as a student)
 # How to use 
 
 ### Pre-requisites
@@ -35,6 +18,16 @@ That's it!
 3. Run `npm start` to start the program
 4. Program will open in your default browser
 5. You'll need to enter your API keys and other settings in the UI, which is in the top right corner of the screen.
+
+### Headless mode
+Want to just process all courses at once? Well look no further. 
+
+Simply run `npm run headless` to run the program in headless mode. This will process all courses and add them to ClickUp.
+
+Some things to note:
+- The program will attempt to match the course name to a ClickUp list. If it can't find a list, it will simply create the task in the default list, and if there is no default list, it will skip the course entirely.
+- It will automatically ignore tasks already added, so assignments are not added twice into ClickUp.
+
 
 ### Bulk Importing Tasks
 This feature allows you to easily add tasks from the JSON format. This was created as I often have repeating tasks that I need to add to ClickUp, and aren't on Canvas. For example, weekly WebAssign assignments.
@@ -93,3 +86,23 @@ Data is stored in a JSON filed called "persistent.json". This file is created an
     "lastPullDate": "2024-01-01T00:00:00.000Z" // Date of last pull from Canvas, used to determine if classes should be re-pulled from Canvas, default is every 30 days
 }
 ```
+
+# Features 
+### Completed Features: 
+- [x] UI for all of this
+- [x] Pull all needed data from Canvas
+- [x] Pull all needed data from ClickUp
+- [x] Hide courses you don't want to see
+- [x] Add assignments to ClickUp
+- [x] Check for duplicates
+- [x] Add a cutoff date for adding assignments
+- [x] Save to JSON file to avoid calling the API every time
+- [x] Detailed progress when adding assignments (possible with WebSockets)
+- [x] Support nicknames for courses 
+- [x] Better UI updates to show progress
+- [x] Add a way to ignore assignments that contain certain words
+- [x] Added support for just importing tasks from JSON data. 
+  
+
+### Features that can't be added:
+- OAuth2.0 for Canvas (Cannot generate client IDs as a student)

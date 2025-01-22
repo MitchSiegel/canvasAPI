@@ -8,6 +8,7 @@ import expressWs from 'express-ws';
 import compression from 'compression';
 const {app} = expressWs(express());
 import open from 'open';
+import processVHL  from "./VHL.js"
 
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -28,9 +29,7 @@ let Settings = {};
 let Courses = []; //array of courses
 let port = 3000; //port to run the web interface on
 
-
 //classes start 
-
 class Course {
     constructor(name, id) {
         this.name = name;
@@ -139,11 +138,11 @@ if(!existsSync(persistentFile)){
 
 
 async function loadCourses(forcePull) {
-    //pull from persistent file if it exists, and check to see if date is more than 30 days old (we don't need to pull from canvas every time)
+    //pull from persistent file if it exists, and check to see if date is more than 90 days old (we don't need to pull from canvas every time)
     let fileData = await fs.readFile(persistentFile, 'utf8')
     fileData = JSON.parse(fileData);
     Settings = fileData.Settings; //load settings from persistent file
-    if (fileData.lastPullDate != null && moment().diff(moment(fileData.lastPullDate), 'days') <= 30 && !forcePull) { //if the last pull date is more than 30 days ago, pull from canvas
+    if (fileData.lastPullDate != null && moment().diff(moment(fileData.lastPullDate), 'days') <= 90 && !forcePull) { //if the last pull date is more than 90 days ago, pull from canvas
         let courseCount = 0;
         for(let i = 0; i < fileData.Courses.length; i++) {
             if(!Settings.ignore.includes(String(fileData.Courses[i].id))){ //this is not working for some reason
@@ -383,7 +382,7 @@ async function createClickUpTask(assignment, listId){
     return {body: json, code: response.status};
 };
 
-async function getClickUpListTasks(listId){
+async function getClickUpListTasks(listId, dates = false){
     if(Settings.clickUpKey == "") return;
     if(Settings.clickUp.spaces.length == 0) return;
     console.log("[CLICKUP]".green + " Loading tasks for list ID".white + ` ${listId}`.green);
@@ -400,11 +399,14 @@ async function getClickUpListTasks(listId){
     let responseData = await fetch(`https://api.clickup.com/api/v2/list/${listId}/task?include_closed='true'`, requestOptions);
     let data = await responseData.json();
     let taskNames = [];
+    let dateInfo = [];
     for(var i = 0; i < data.tasks.length; i++){
         taskNames.push(data.tasks[i].name);
+        dateInfo.push({"name": data.tasks[i].name, "date":data.tasks[i].due_date});
     }
     if(taskNames.length == 0) taskNames.push("No tasks");
     console.log("[CLICKUP]".green + " Loaded tasks for list ID".white + ` ${listId}`.green);
+    if(dates) return dateInfo;
     return taskNames;
     
 }
@@ -422,6 +424,68 @@ async function initialLoad(){
         await getClickUpTeamId();
         await getClickUpSpaces();
         await getClickUpLists();
+    }
+
+    if(process.argv[2] === "--all"){
+        //headless version to process all courses & assignments
+        for(let i = 0; i < Courses.length; i++){
+            if(Settings.ignore.includes(Courses[i].getId())) continue;
+            console.log("[PROCESS]".rainbow + " Processing course: ".white + Courses[i].getId().toString().yellow);
+            await loadAssignments(Courses[i]);
+            //find clickup list based on similarity names'
+                //find similar clickup list and offer it to the client [only if default space is set]
+            let match = {name: "none", id: 0};
+            if(Settings.clickUp.defaultSpaceId != "") {
+                let names = [];
+                let space = Settings.clickUp.spaces.find(space => space.id == Settings.clickUp.defaultSpaceId);
+                for(let i=0; i < space.lists.length; i++) {
+                    names.push(space.lists[i].name);
+                }
+                match = findBestMatch(Courses[i].getName(), names);
+                match = (match.bestMatch.rating > 0.50 ? space.lists[match.bestMatchIndex] : {name: "none", id: 0});
+            }
+            if(match.id != 0){
+                console.log("[PROCESS]".rainbow + " Found matching list: ".white + match.name.green);
+            }else{
+                if(Settings.clickUp.defaultSpaceId == "" || Settings.clickUp.defaultListId == ""){
+                    console.log("[PROCESS]".red + " No default space/list set, skipping course.".white);
+                    continue;
+                }else{
+                    match.id = Settings.clickUp.defaultListId;
+                    console.log("[PROCESS]".red + " No ClickUp List found for".white + " course ".white + Courses[i].getName().yellow + ". Default space will now be used.".white);
+                }
+            }
+            //always skip duplicates for headless
+            let clickUpTasks = await getClickUpListTasks(match.id);
+            for(let j = 0; j < Courses[i].getAssignments().length; j++){
+                let currentAssignment = Courses[i].getAssignments()[j];
+                let a = findBestMatch(currentAssignment.name, clickUpTasks);
+                if(a.bestMatch.rating > 0.95) {
+                    console.log("[PROCESS]".blue + " Skipping task ".white + String(a.bestMatch.target).blue + " because it already exists in ClickUp".white);
+                    continue;
+                }
+                let task = await createClickUpTask(currentAssignment, match.id);
+                switch (task.code){
+                    case 200:
+                        console.log("[PROCESS]".blue + " Created task with id: ".white + String(task.body.id).cyan + " in list ".white + match.id.cyan);
+                        break;
+                    case 100:
+                        console.log("[PROCESS]".red + " Skipped assignment with: ".white + String(currentAssignment.name).cyan + " due to invalid date".white);
+                        break;
+                    default:
+                        console.log("[PROCESS]".red + " Error creating task: ".white + task.code);
+                        break;
+                }
+            }
+        }
+        //we are done here so we can exit
+        console.log("[PROCESS]".rainbow + " Done. Exiting.".white);
+        process.exit();
+    }
+
+    //this doesn't work but we will get there eventually
+    if(process.argv[2] === "--vhl" && process.argv[3] != undefined){
+        await handleVHL();
     }
 }
 
@@ -568,7 +632,7 @@ app.ws('/ws/generate', function(ws) {
                 }
                 let clickUpTasks = ["none"];
                 //we really only need to get the tasks if we are ignoring duplicates. Getting the task will slow down the process, so we only want to do it if we need to
-                if(ignoreDuplicates) {
+                if(ignoreDuplicates) { //TODO this can be re-written to be more efficient, shouldn't need to get the tasks every time, just once.
                     clickUpTasks = await getClickUpListTasks(clickUpList);
                 }
                 console.log("[API]".cyan + " Generating ClickUp Tasks for".white + " course ".white + course.getName().yellow + " and ClickUp list ".white + clickUpList.green);
@@ -742,7 +806,13 @@ app.ws("/ws/addBulk", async function(ws){
 //start the server, either on port 3001 or the port specified in the environment variables
 const server = app.listen(process.env.PORT || port, () => {
     console.log("[SERVER]".blue +  ` Server started on port `.white + `${(process.env.PORT || port)}`.blue);
-    open(`http://localhost:${(process.env.PORT || port)}`);
+    if(process.argv[2]){
+        if(process.argv[2] != "--all"){
+            open(`http://localhost:${(process.env.PORT || port)}`);
+        }
+    }else{ //open by default but protect against no arguments
+        open(`http://localhost:${(process.env.PORT || port)}`);
+    }
 })
 
 /* testing functions to load in BS data */
@@ -770,6 +840,33 @@ async function runTests(){
     await getClickUpSpaces();
     await getClickUpLists();
 
+}
+
+/* handle VHL */
+async function handleVHL(){
+    console.log("[VHL]".rainbow + ` VHL flag found, importing tasks from ${process.argv[3]}`.white);
+    try{
+        let data = await processVHL(process.argv[3]);
+        //by nature of this, we need to ensure no duplicates are added
+        let currentTasks = await getClickUpListTasks(data[0].clickUpListId,true); //all tasks go to one list
+        for(let i = 0; i < data.length; i++){
+            for(let j = 0; j < currentTasks.length; j++){
+                if(data[i].name == currentTasks[j].name && data[i].dueDate == currentTasks[j].date){
+                    console.log("[VHL]".rainbow + ` Task ${data[i].name} already exists in ClickUp, skipping`.white);
+                    continue;
+                }
+            }
+            //let assignment = new Assignment(data[i].name, data[i].dueDate, "online_upload", data[i].url);
+        }
+
+    }
+    catch(e){
+        console.log("[VHL]".red + " Error importing VHL data".white);
+        console.log(e);
+    }
+
+
+    //let 
 }
 
 /* helper functions */ 
@@ -804,3 +901,5 @@ process.on('SIGTERM', () => {
         process.exit(0);
     });
 });
+
+
